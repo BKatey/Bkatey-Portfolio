@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Spelling Crossword</title>
+    <title>Spelling Word Games</title>
     <style>
         :root {
             --bg: #f4f7fb;
@@ -250,13 +250,108 @@
 
         a { color: var(--accent); }
 
+        [hidden] { display: none !important; }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tabs button {
+            font-size: 1.05rem;
+            font-weight: 600;
+            padding: 9px 16px;
+        }
+
+        .tabs button[aria-selected="true"] {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .check {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        /* ----- Word search ----- */
+        .ws-message { min-height: 3em; }
+
+        .ws-wrap {
+            --ws-cell: 34px;
+            position: relative;
+            margin: 0 auto;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #wsGrid {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            cursor: pointer;
+        }
+
+        .ws-cell {
+            width: var(--ws-cell);
+            height: var(--ws-cell);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Courier New", Consolas, monospace;
+            font-size: calc(var(--ws-cell) * .55);
+            font-weight: 700;
+            border-radius: 50%;
+        }
+
+        .ws-cell.start { box-shadow: inset 0 0 0 3px var(--accent); }
+
+        .ws-cell.hint { animation: hintPulse 0.8s ease-in-out 3; }
+
+        @keyframes hintPulse {
+            50% { background: var(--active); transform: scale(1.25); }
+        }
+
+        #wsLines {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        #wsLines .current { stroke: var(--accent); opacity: .3; }
+        #wsLines .miss { stroke: var(--bad); opacity: .35; }
+        #wsLines .strike { stroke: var(--ink); opacity: .7; }
+
+        .ws-list li {
+            grid-template-columns: 2.6em 1fr auto;
+            align-items: center;
+        }
+
+        .ws-list .ws-word { font-size: 1.1rem; text-transform: capitalize; }
+        .ws-list li.found .ws-word { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--muted); }
+        .ws-list li.found .n::after { content: " ✓"; color: var(--good); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ws-cell.hint { animation: none; background: var(--active); }
+        }
+
         @media (max-width: 800px) {
             .layout { grid-template-columns: minmax(0, 1fr); }
             .status { margin-left: 0; width: 100%; }
         }
 
         @media print {
-            header, .toolbar, .current-clue, .help, .clue-actions, .word-wall, .banner, footer { display: none !important; }
+            header, .tabs, .toolbar, .current-clue, .help, .clue-actions, .word-wall, .banner, footer { display: none !important; }
+            #wsLines { display: none; }
+            .ws-list li.found .ws-word { text-decoration: none; color: var(--ink); }
             body { background: #fff; }
             .card { border: 0; }
             .layout { grid-template-columns: 1fr; }
@@ -271,11 +366,59 @@
 
 <body>
     <header>
-        <h1>🧩 Spelling Crossword</h1>
-        <p>Read or listen to each clue, sound out the word, and spell it in the puzzle.</p>
+        <h1>🔤 Spelling Word Games</h1>
+        <p>Find, hear and spell 5th grade words.</p>
     </header>
 
     <main>
+        <div class="tabs" role="tablist" aria-label="Choose a game">
+            <button type="button" role="tab" id="tabWs" aria-selected="true" aria-controls="wordSearchGame">🔍 Word Search</button>
+            <button type="button" role="tab" id="tabCw" aria-selected="false" aria-controls="crosswordGame">🧩 Crossword</button>
+        </div>
+
+        <div id="wordSearchGame" role="tabpanel" aria-labelledby="tabWs">
+            <div class="toolbar">
+                <div class="mode" role="group" aria-label="Word list mode">
+                    <button type="button" id="wsModeRead" aria-pressed="true">📖 Read the list</button>
+                    <button type="button" id="wsModeListen" aria-pressed="false">🎧 Listen &amp; find</button>
+                </div>
+                <label class="check"><input type="checkbox" id="wsHard"> Backwards words too</label>
+                <button type="button" id="wsHint">💡 Hint</button>
+                <button type="button" id="wsPrint">Print</button>
+                <button type="button" id="wsNew" class="primary">New puzzle</button>
+                <span class="status" id="wsStatus"></span>
+            </div>
+
+            <div class="banner" id="wsBanner" role="status"></div>
+
+            <div class="layout">
+                <section class="card">
+                    <div class="current-clue ws-message" id="wsMessage" aria-live="polite">Find a word from the list and cross it out.</div>
+                    <div class="ws-wrap" id="wsWrap">
+                        <svg id="wsLines" aria-hidden="true"></svg>
+                        <div id="wsGrid" aria-label="Word search letters"></div>
+                    </div>
+                    <p class="help">
+                        Find a word and drag across it from the first letter to the last to cross it out.
+                        You can also tap the first letter and then the last letter. Each word you find
+                        is read out loud. Say it back!
+                    </p>
+                </section>
+
+                <section class="card clues">
+                    <h2>Words to find</h2>
+                    <ol id="wsList" class="ws-list"></ol>
+                </section>
+            </div>
+
+            <section class="card word-wall">
+                <h2>🏆 Words I Found</h2>
+                <p class="empty" id="wsWallEmpty">Each word you find will appear here with its syllables and how to say it.</p>
+                <div class="wall" id="wsWall"></div>
+            </section>
+        </div>
+
+        <div id="crosswordGame" role="tabpanel" aria-labelledby="tabCw" hidden>
         <div class="toolbar">
             <div class="mode" role="group" aria-label="Clue mode">
                 <button type="button" id="modeRead" aria-pressed="true">📖 Read clues</button>
@@ -317,6 +460,7 @@
             <p class="empty" id="wallEmpty">Words you spell will appear here with their syllables and sounds. Practice saying each one out loud!</p>
             <div class="wall" id="wall"></div>
         </section>
+        </div>
 
         <p><a href="../index.html">← Back to portfolio</a></p>
     </main>
@@ -929,27 +1073,32 @@
             statusEl.textContent = `⭐ ${solved} / ${words.length} words spelled · 💡 hints: ${hintsUsed}`;
         }
 
-        function addToWall(w) {
+        function makeWordCard(entry, revealed) {
             const card = document.createElement("div");
-            card.className = "word-card" + (w.revealed ? " was-revealed" : "");
-            card.dataset.key = `${w.num}-${w.dir}`;
+            card.className = "word-card" + (revealed ? " was-revealed" : "");
             card.innerHTML = `
                 <div class="big"></div>
                 <div class="syll"></div>
                 <div class="say"></div>
                 <div class="tip"></div>`;
-            card.querySelector(".big").textContent = w.entry.w;
-            card.querySelector(".syll").textContent = `Syllables: ${w.entry.s}`;
-            card.querySelector(".say").textContent = `Say it: ${w.entry.p}`;
-            card.querySelector(".tip").textContent = `Tip: ${w.entry.t}`;
+            card.querySelector(".big").textContent = entry.w;
+            card.querySelector(".syll").textContent = `Syllables: ${entry.s}`;
+            card.querySelector(".say").textContent = `Say it: ${entry.p}`;
+            card.querySelector(".tip").textContent = `Tip: ${entry.t}`;
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "speak";
             btn.textContent = "🔊";
             btn.title = "Hear it again";
             btn.style.float = "right";
-            btn.addEventListener("click", () => speak(w.entry.w));
+            btn.addEventListener("click", () => speak(entry.w));
             card.prepend(btn);
+            return card;
+        }
+
+        function addToWall(w) {
+            const card = makeWordCard(w.entry, w.revealed);
+            card.dataset.key = `${w.num}-${w.dir}`;
             wallEl.appendChild(card);
             wallEmpty.style.display = "none";
         }
@@ -990,8 +1139,319 @@
 
         if (canSpeak()) speechSynthesis.getVoices();
 
-        window.addEventListener("resize", sizeCells);
+        // ---------- Word search ----------
+
+        const WS_SIZE = 12;
+        const WS_COUNT = 10;
+        const WS_DIRS = [[0, 1], [1, 0], [1, 1], [-1, 1]];
+        const WS_DIRS_BACKWARDS = [[0, -1], [-1, 0], [-1, -1], [1, -1]];
+        const WS_COLORS = ["#facc15", "#4ade80", "#60a5fa", "#f472b6", "#fb923c", "#a78bfa"];
+        const SVG_NS = "http://www.w3.org/2000/svg";
+
+        const wsWrap = document.getElementById("wsWrap");
+        const wsGridEl = document.getElementById("wsGrid");
+        const wsLinesEl = document.getElementById("wsLines");
+        const wsListEl = document.getElementById("wsList");
+        const wsStatusEl = document.getElementById("wsStatus");
+        const wsMessageEl = document.getElementById("wsMessage");
+        const wsBannerEl = document.getElementById("wsBanner");
+        const wsWallEl = document.getElementById("wsWall");
+        const wsWallEmpty = document.getElementById("wsWallEmpty");
+
+        const ws = { letters: [], words: [], cells: [], mode: "read", hints: 0, drag: null, pending: null };
+
+        function wsGenerate(backwards) {
+            const dirs = backwards ? [...WS_DIRS, ...WS_DIRS_BACKWARDS] : WS_DIRS;
+            const rand = n => Math.floor(Math.random() * n);
+            for (let attempt = 0; attempt < 50; attempt++) {
+                const letters = Array.from({ length: WS_SIZE }, () => Array(WS_SIZE).fill(""));
+                const placed = [];
+                for (const entry of shuffle(WORD_BANK)) {
+                    if (placed.length >= WS_COUNT) break;
+                    const word = entry.w.toUpperCase();
+                    if (word.length > WS_SIZE) continue;
+                    if (placed.some(p => p.word.includes(word) || word.includes(p.word))) continue;
+                    for (let t = 0; t < 200; t++) {
+                        const [dr, dc] = dirs[rand(dirs.length)];
+                        const r = rand(WS_SIZE), c = rand(WS_SIZE);
+                        const er = r + dr * (word.length - 1), ec = c + dc * (word.length - 1);
+                        if (er < 0 || er >= WS_SIZE || ec < 0 || ec >= WS_SIZE) continue;
+                        let ok = true;
+                        for (let i = 0; i < word.length && ok; i++) {
+                            const ch = letters[r + dr * i][c + dc * i];
+                            if (ch && ch !== word[i]) ok = false;
+                        }
+                        if (!ok) continue;
+                        for (let i = 0; i < word.length; i++) letters[r + dr * i][c + dc * i] = word[i];
+                        placed.push({ entry, word, r, c, dr, dc, found: false });
+                        break;
+                    }
+                }
+                if (placed.length < WS_COUNT) continue;
+                const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                for (const row of letters) for (let c = 0; c < WS_SIZE; c++) {
+                    if (!row[c]) row[c] = abc[rand(abc.length)];
+                }
+                placed.sort((a, b) => a.word.localeCompare(b.word));
+                return { letters, placed };
+            }
+        }
+
+        function wsNewGame() {
+            const { letters, placed } = wsGenerate(document.getElementById("wsHard").checked);
+            ws.letters = letters;
+            ws.words = placed;
+            ws.hints = 0;
+            ws.drag = null;
+            ws.pending = null;
+
+            wsGridEl.innerHTML = "";
+            wsGridEl.style.gridTemplateColumns = `repeat(${WS_SIZE}, var(--ws-cell))`;
+            ws.cells = letters.map(row => row.map(ch => {
+                const div = document.createElement("div");
+                div.className = "ws-cell";
+                div.textContent = ch;
+                wsGridEl.appendChild(div);
+                return div;
+            }));
+
+            wsLinesEl.setAttribute("viewBox", `0 0 ${WS_SIZE} ${WS_SIZE}`);
+            wsLinesEl.innerHTML = "";
+            ws.currentLine = svgLine("current", 0.72);
+            ws.currentLine.style.display = "none";
+
+            wsBannerEl.classList.remove("show");
+            wsWallEl.innerHTML = "";
+            wsWallEmpty.hidden = false;
+            wsRenderList();
+            wsSize();
+            wsUpdateStatus();
+            wsFlash("Find a word from the list and cross it out.");
+        }
+
+        function wsRenderList() {
+            wsListEl.innerHTML = "";
+            ws.words.forEach((w, i) => {
+                const li = document.createElement("li");
+                li.innerHTML = `<span class="n">${i + 1}</span><span class="ws-word"></span>
+                    <span class="clue-actions"><button type="button" class="speak" title="Hear the word">🔊</button></span>`;
+                const label = li.querySelector(".ws-word");
+                if (ws.mode === "listen" && !w.found) {
+                    label.textContent = `${w.word.length} letters`;
+                    label.style.textTransform = "none";
+                } else {
+                    label.textContent = w.entry.w;
+                }
+                li.querySelector("button").addEventListener("click", () => speak(w.entry.w));
+                li.classList.toggle("found", w.found);
+                w.li = li;
+                wsListEl.appendChild(li);
+            });
+        }
+
+        function wsSize() {
+            const avail = wsWrap.parentElement.clientWidth - 26;
+            if (avail <= 0) return;
+            const size = Math.max(22, Math.min(42, Math.floor(avail / WS_SIZE)));
+            wsWrap.style.setProperty("--ws-cell", size + "px");
+            wsWrap.style.width = size * WS_SIZE + "px";
+        }
+
+        function svgLine(cls, width, color) {
+            const line = document.createElementNS(SVG_NS, "line");
+            line.setAttribute("class", cls);
+            line.setAttribute("stroke-width", width);
+            line.setAttribute("stroke-linecap", "round");
+            if (color) line.setAttribute("stroke", color);
+            wsLinesEl.appendChild(line);
+            return line;
+        }
+
+        function placeLine(line, a, b) {
+            line.setAttribute("x1", a.c + 0.5);
+            line.setAttribute("y1", a.r + 0.5);
+            line.setAttribute("x2", b.c + 0.5);
+            line.setAttribute("y2", b.r + 0.5);
+        }
+
+        function wsCellAt(e) {
+            const rect = wsGridEl.getBoundingClientRect();
+            const size = rect.width / WS_SIZE;
+            const clamp = v => Math.max(0, Math.min(WS_SIZE - 1, v));
+            return {
+                r: clamp(Math.floor((e.clientY - rect.top) / size)),
+                c: clamp(Math.floor((e.clientX - rect.left) / size))
+            };
+        }
+
+        // Snap any drag to the nearest straight or diagonal line that stays on the grid.
+        function wsSnap(start, target) {
+            const dr = target.r - start.r, dc = target.c - start.c;
+            if (!dr && !dc) return start;
+            const step = Math.round(Math.atan2(dr, dc) / (Math.PI / 4));
+            const sr = Math.round(Math.sin(step * Math.PI / 4));
+            const sc = Math.round(Math.cos(step * Math.PI / 4));
+            let len = Math.max(Math.abs(dr), Math.abs(dc));
+            const inside = n => {
+                const r = start.r + sr * n, c = start.c + sc * n;
+                return r >= 0 && r < WS_SIZE && c >= 0 && c < WS_SIZE;
+            };
+            while (len > 0 && !inside(len)) len--;
+            return { r: start.r + sr * len, c: start.c + sc * len };
+        }
+
+        function wsPath(a, b) {
+            const len = Math.max(Math.abs(b.r - a.r), Math.abs(b.c - a.c));
+            const sr = Math.sign(b.r - a.r), sc = Math.sign(b.c - a.c);
+            return Array.from({ length: len + 1 }, (_, i) => ({ r: a.r + sr * i, c: a.c + sc * i }));
+        }
+
+        function wsSetPending(cell) {
+            if (ws.pending) ws.cells[ws.pending.r][ws.pending.c].classList.remove("start");
+            ws.pending = cell;
+            if (cell) ws.cells[cell.r][cell.c].classList.add("start");
+        }
+
+        wsGridEl.addEventListener("pointerdown", e => {
+            e.preventDefault();
+            const cell = wsCellAt(e);
+            try { wsGridEl.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
+            ws.drag = { start: cell, end: cell };
+            ws.currentLine.style.display = "";
+            placeLine(ws.currentLine, ws.pending || cell, ws.pending ? wsSnap(ws.pending, cell) : cell);
+        });
+
+        wsGridEl.addEventListener("pointermove", e => {
+            if (!ws.drag) return;
+            const end = wsSnap(ws.drag.start, wsCellAt(e));
+            ws.drag.end = end;
+            placeLine(ws.currentLine, ws.drag.start, end);
+        });
+
+        wsGridEl.addEventListener("pointerup", () => {
+            if (!ws.drag) return;
+            const { start, end } = ws.drag;
+            ws.drag = null;
+            ws.currentLine.style.display = "none";
+            const isTap = start.r === end.r && start.c === end.c;
+            if (!isTap) {
+                wsSetPending(null);
+                wsCheck(start, end);
+            } else if (!ws.pending) {
+                wsSetPending(start);
+            } else if (ws.pending.r === start.r && ws.pending.c === start.c) {
+                wsSetPending(null);
+            } else {
+                const from = ws.pending;
+                wsSetPending(null);
+                wsCheck(from, wsSnap(from, start));
+            }
+        });
+
+        wsGridEl.addEventListener("pointercancel", () => {
+            ws.drag = null;
+            ws.currentLine.style.display = "none";
+        });
+
+        function wsCheck(a, b) {
+            const path = wsPath(a, b);
+            if (path.length < 2) return;
+            const text = path.map(p => ws.letters[p.r][p.c]).join("");
+            const back = text.split("").reverse().join("");
+            const match = ws.words.find(w => w.word === text || w.word === back);
+
+            if (match && match.found) {
+                speak(match.entry.w);
+                wsFlash(`You already found "${match.entry.w}".`);
+            } else if (match) {
+                match.found = true;
+                const color = WS_COLORS[ws.words.filter(w => w.found).length % WS_COLORS.length];
+                placeLine(svgLine("band", 0.72, color), a, b);
+                placeLine(svgLine("strike", 0.08), a, b);
+                wsLinesEl.appendChild(ws.currentLine);
+                match.li.classList.add("found");
+                const label = match.li.querySelector(".ws-word");
+                label.textContent = match.entry.w;
+                label.style.textTransform = "";
+                speak(match.entry.w);
+                const card = makeWordCard(match.entry, false);
+                wsWallEl.prepend(card);
+                wsWallEmpty.hidden = true;
+                wsFlash(`You found "${match.entry.w}"! Say it: ${match.entry.p}`);
+                wsUpdateStatus();
+                if (ws.words.every(w => w.found)) wsCelebrate();
+            } else {
+                const miss = svgLine("miss", 0.72);
+                placeLine(miss, a, b);
+                setTimeout(() => miss.remove(), 700);
+                wsFlash(`"${text}" isn't one of the words. Try again!`);
+            }
+        }
+
+        function wsFlash(msg) {
+            wsMessageEl.textContent = msg;
+        }
+
+        function wsUpdateStatus() {
+            const found = ws.words.filter(w => w.found).length;
+            wsStatusEl.textContent = `🔍 ${found} / ${ws.words.length} words found · 💡 hints: ${ws.hints}`;
+        }
+
+        function wsCelebrate() {
+            const stars = ws.hints === 0 ? "🌟🌟🌟" : ws.hints <= 3 ? "🌟🌟" : "🌟";
+            wsBannerEl.textContent = `${stars} You found all ${ws.words.length} words with ${ws.hints} hint${ws.hints === 1 ? "" : "s"}! ` +
+                "Read each word below out loud, then try a new puzzle.";
+            wsBannerEl.classList.add("show");
+        }
+
+        function wsSetMode(m) {
+            ws.mode = m;
+            document.getElementById("wsModeRead").setAttribute("aria-pressed", m === "read");
+            document.getElementById("wsModeListen").setAttribute("aria-pressed", m === "listen");
+            wsRenderList();
+            if (m === "listen" && !canSpeak()) {
+                wsFlash("This browser can't read words out loud. Try Chrome, Edge or Safari.");
+            }
+        }
+
+        document.getElementById("wsModeRead").addEventListener("click", () => wsSetMode("read"));
+        document.getElementById("wsModeListen").addEventListener("click", () => wsSetMode("listen"));
+        document.getElementById("wsNew").addEventListener("click", wsNewGame);
+        document.getElementById("wsHard").addEventListener("change", wsNewGame);
+        document.getElementById("wsPrint").addEventListener("click", () => window.print());
+
+        document.getElementById("wsHint").addEventListener("click", () => {
+            const left = ws.words.filter(w => !w.found);
+            if (!left.length) return;
+            const w = left[Math.floor(Math.random() * left.length)];
+            ws.hints++;
+            const cell = ws.cells[w.r][w.c];
+            cell.classList.remove("hint");
+            void cell.offsetWidth;
+            cell.classList.add("hint");
+            setTimeout(() => cell.classList.remove("hint"), 2600);
+            speak(w.entry.w);
+            wsUpdateStatus();
+            wsFlash(`"${w.entry.w}" starts at the flashing letter.`);
+        });
+
+        // ---------- Game tabs ----------
+
+        function showGame(name) {
+            const isWs = name === "ws";
+            document.getElementById("wordSearchGame").hidden = !isWs;
+            document.getElementById("crosswordGame").hidden = isWs;
+            document.getElementById("tabWs").setAttribute("aria-selected", isWs);
+            document.getElementById("tabCw").setAttribute("aria-selected", !isWs);
+            if (isWs) wsSize(); else sizeCells();
+        }
+
+        document.getElementById("tabWs").addEventListener("click", () => showGame("ws"));
+        document.getElementById("tabCw").addEventListener("click", () => showGame("cw"));
+
+        window.addEventListener("resize", () => { sizeCells(); wsSize(); });
         newGame();
+        wsNewGame();
     </script>
 </body>
 
