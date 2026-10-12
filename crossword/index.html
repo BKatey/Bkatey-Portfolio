@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spelling Crossword</title>
+    <style>
+        :root {
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --line: #cbd5e1;
+            --accent: #2563eb;
+            --accent-soft: #dbeafe;
+            --active: #fde68a;
+            --good: #16a34a;
+            --good-soft: #dcfce7;
+            --bad: #dc2626;
+            --bad-soft: #fee2e2;
+            --reveal: #7c3aed;
+            --cell: 36px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.4;
+        }
+
+        header {
+            background: var(--accent);
+            color: #fff;
+            padding: 16px;
+            text-align: center;
+        }
+
+        header h1 { margin: 0; font-size: 1.7rem; }
+        header p { margin: 4px 0 0; opacity: .9; }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        button {
+            font: inherit;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            color: var(--ink);
+            border-radius: 8px;
+            padding: 7px 12px;
+            cursor: pointer;
+        }
+
+        button:hover { border-color: var(--accent); }
+        button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        button.speak { padding: 2px 8px; font-size: .95rem; }
+
+        .mode {
+            display: inline-flex;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .mode button { border: 0; border-radius: 0; }
+        .mode button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+        .status {
+            margin-left: auto;
+            font-weight: 600;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .current-clue {
+            background: var(--accent-soft);
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            min-height: 2.6em;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .current-clue .label { font-weight: 700; white-space: nowrap; }
+
+        #grid {
+            display: grid;
+            gap: 0;
+            justify-content: center;
+        }
+
+        .cell {
+            width: var(--cell);
+            height: var(--cell);
+            position: relative;
+        }
+
+        .cell.letter {
+            background: #fff;
+            border: 1px solid #475569;
+            margin: -0.5px;
+        }
+
+        .cell.inword { background: var(--accent-soft); }
+        .cell.active { background: var(--active); }
+        .cell.correct input { color: var(--good); }
+        .cell.wrong { background: var(--bad-soft); }
+        .cell.revealed input { color: var(--reveal); }
+
+        .cell .num {
+            position: absolute;
+            top: 1px;
+            left: 2px;
+            font-size: calc(var(--cell) * .28);
+            line-height: 1;
+            pointer-events: none;
+            color: #334155;
+        }
+
+        .cell input {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: transparent;
+            text-align: center;
+            font-size: calc(var(--cell) * .55);
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: calc(var(--cell) * .12) 0 0;
+            color: var(--ink);
+            caret-color: transparent;
+            cursor: pointer;
+        }
+
+        .cell input:focus { outline: none; }
+
+        .clues h2 {
+            font-size: 1.1rem;
+            margin: 4px 0 6px;
+            border-bottom: 2px solid var(--accent-soft);
+        }
+
+        .clues ol {
+            list-style: none;
+            margin: 0 0 12px;
+            padding: 0;
+        }
+
+        .clues li {
+            display: grid;
+            grid-template-columns: 2em 1fr auto;
+            gap: 6px;
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            align-items: start;
+        }
+
+        .clues li:hover { background: var(--bg); }
+        .clues li.selected { background: var(--accent-soft); }
+        .clues li.solved .text { color: var(--good); }
+        .clues li.solved .n::after { content: " ✓"; color: var(--good); }
+        .clues .n { font-weight: 700; }
+        .clues .meta { display: block; font-size: .82rem; color: var(--muted); }
+        .clues .sound { display: block; font-size: .9rem; color: var(--reveal); font-weight: 600; }
+        .clue-actions { display: flex; gap: 4px; }
+
+        .word-wall {
+            margin-top: 16px;
+        }
+
+        .word-wall h2 { font-size: 1.1rem; margin: 0 0 8px; }
+        .word-wall .empty { color: var(--muted); margin: 0; }
+
+        .wall {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .word-card {
+            border: 1px solid var(--line);
+            border-left: 5px solid var(--good);
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #fff;
+        }
+
+        .word-card.was-revealed { border-left-color: var(--reveal); }
+        .word-card .big { font-size: 1.3rem; font-weight: 700; letter-spacing: .04em; }
+        .word-card .syll { color: var(--muted); }
+        .word-card .say { color: var(--reveal); font-weight: 600; }
+        .word-card .tip { font-size: .88rem; margin-top: 4px; }
+
+        .banner {
+            display: none;
+            background: var(--good-soft);
+            border: 2px solid var(--good);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .banner.show { display: block; }
+
+        .help {
+            font-size: .9rem;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        .help kbd {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 0 4px;
+            background: #fff;
+            font-size: .8rem;
+        }
+
+        a { color: var(--accent); }
+
+        @media (max-width: 800px) {
+            .layout { grid-template-columns: minmax(0, 1fr); }
+            .status { margin-left: 0; width: 100%; }
+        }
+
+        @media print {
+            header, .toolbar, .current-clue, .help, .clue-actions, .word-wall, .banner, footer { display: none !important; }
+            body { background: #fff; }
+            .card { border: 0; }
+            .layout { grid-template-columns: 1fr; }
+            .cell.inword, .cell.active, .cell.wrong { background: #fff; }
+            .cell input { color: transparent !important; }
+            .clues li.solved .text { color: var(--ink); }
+            .clues li.solved .n::after { content: ""; }
+            .clues .sound { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>🧩 Spelling Crossword</h1>
+        <p>Read or listen to each clue, sound out the word, and spell it in the puzzle.</p>
+    </header>
+
+    <main>
+        <div class="toolbar">
+            <div class="mode" role="group" aria-label="Clue mode">
+                <button type="button" id="modeRead" aria-pressed="true">📖 Read clues</button>
+                <button type="button" id="modeListen" aria-pressed="false">🎧 Listen &amp; spell</button>
+            </div>
+            <button type="button" id="checkWord">Check word</button>
+            <button type="button" id="checkAll">Check puzzle</button>
+            <button type="button" id="revealLetter">Reveal letter</button>
+            <button type="button" id="revealWord">Reveal word</button>
+            <button type="button" id="clearAll">Clear</button>
+            <button type="button" id="printBtn">Print</button>
+            <button type="button" id="newPuzzle" class="primary">New puzzle</button>
+            <span class="status" id="status"></span>
+        </div>
+
+        <div class="banner" id="banner" role="status"></div>
+
+        <div class="layout">
+            <section class="card">
+                <div class="current-clue" id="currentClue" aria-live="polite"></div>
+                <div id="grid" aria-label="Crossword grid"></div>
+                <p class="help">
+                    Click a square and type. <kbd>Space</kbd> or clicking the same square switches
+                    Across/Down. <kbd>Tab</kbd> jumps to the next clue. Press 🔊 to hear a word and
+                    💡 to see how to sound it out.
+                </p>
+            </section>
+
+            <section class="card clues">
+                <h2>Across</h2>
+                <ol id="acrossList"></ol>
+                <h2>Down</h2>
+                <ol id="downList"></ol>
+            </section>
+        </div>
+
+        <section class="card word-wall">
+            <h2>🏆 My Word Wall</h2>
+            <p class="empty" id="wallEmpty">Words you spell will appear here with their syllables and sounds. Practice saying each one out loud!</p>
+            <div class="wall" id="wall"></div>
+        </section>
+
+        <p><a href="../index.html">← Back to portfolio</a></p>
+    </main>
+
+    <script>
+        // Grade 5 spelling words.
+        // s = syllables, p = how to say it (stressed part in CAPS), c = clue, t = spelling tip
+        const WORD_BANK = [
+            { w: "adventure", s: "ad·ven·ture", p: "ad-VEN-cher", c: "An exciting or daring experience", t: "The \"cher\" sound at the end is spelled -ture, like in picture." },
+            { w: "ancient", s: "an·cient", p: "AYN-shunt", c: "Very, very old; from long ago", t: "The \"sh\" sound is spelled ci." },
+            { w: "answer", s: "an·swer", p: "AN-ser", c: "A reply to a question", t: "Silent w: an-s-W-er." },
+            { w: "beautiful", s: "beau·ti·ful", p: "BYOO-tih-ful", c: "Very pretty or lovely to look at", t: "Starts with b-e-a-u. The suffix -ful has only one l." },
+            { w: "believe", s: "be·lieve", p: "bih-LEEV", c: "To think that something is true", t: "\"I before e, except after c.\"" },
+            { w: "calendar", s: "cal·en·dar", p: "KAL-un-der", c: "A chart of the days, weeks and months of the year", t: "It ends in -ar, not -er." },
+            { w: "castle", s: "cas·tle", p: "KAS-ul", c: "A large stone home with towers where a king might live", t: "Silent t, like in whistle." },
+            { w: "character", s: "char·ac·ter", p: "KAIR-ik-ter", c: "A person or animal in a story", t: "The ch sounds like k." },
+            { w: "chocolate", s: "choc·o·late", p: "CHAWK-lit", c: "A sweet brown treat made from cacao beans", t: "Don't forget the middle o: choc-O-late." },
+            { w: "climate", s: "cli·mate", p: "KLY-mit", c: "The usual weather of a place over many years", t: "Ends with -ate, even though it sounds like \"mit\"." },
+            { w: "curious", s: "cu·ri·ous", p: "KYOOR-ee-us", c: "Eager to know or learn about something", t: "The ending -ous sounds like \"us\"." },
+            { w: "delicious", s: "de·li·cious", p: "dih-LISH-us", c: "Tastes very, very good", t: "The \"shus\" sound is spelled -cious." },
+            { w: "different", s: "dif·fer·ent", p: "DIF-er-unt", c: "Not the same", t: "Double f, and the middle syllable is -fer-." },
+            { w: "dinosaur", s: "di·no·saur", p: "DY-nuh-sor", c: "A huge reptile that lived millions of years ago", t: "Ends in -saur, which means lizard." },
+            { w: "discover", s: "dis·cov·er", p: "dis-KUV-er", c: "To find something for the first time", t: "The prefix dis- plus cover." },
+            { w: "enormous", s: "e·nor·mous", p: "ih-NOR-mus", c: "Very, very big; huge", t: "The ending -ous sounds like \"us\"." },
+            { w: "experiment", s: "ex·per·i·ment", p: "ik-SPAIR-uh-ment", c: "A test you do in science to find something out", t: "Four syllables: ex-per-i-ment." },
+            { w: "favorite", s: "fa·vor·ite", p: "FAY-ver-it", c: "The one you like the best", t: "It ends with -ite, not -it." },
+            { w: "february", s: "Feb·ru·ar·y", p: "FEB-roo-air-ee", c: "The second month of the year", t: "Don't forget the first r: Feb-R-uary." },
+            { w: "friend", s: "friend", p: "FREND", c: "Someone you like and trust", t: "A friend is there to the END: fri-END." },
+            { w: "government", s: "gov·ern·ment", p: "GUV-ern-ment", c: "The group of people who run a country or state", t: "Govern + ment. Don't drop the n!" },
+            { w: "guess", s: "guess", p: "GES", c: "To give an answer when you are not sure", t: "The u is silent and the s is doubled." },
+            { w: "height", s: "height", p: "HYTE", c: "How tall something or someone is", t: "Spelled with -eigh-, like weight, but says \"hite\"." },
+            { w: "imagine", s: "im·ag·ine", p: "ih-MAJ-in", c: "To make a picture of something in your mind", t: "The g sounds like j before i." },
+            { w: "island", s: "is·land", p: "EYE-lund", c: "Land with water all around it", t: "Silent s: i-S-land." },
+            { w: "journey", s: "jour·ney", p: "JER-nee", c: "A long trip from one place to another", t: "The \"er\" sound is spelled our here." },
+            { w: "knowledge", s: "knowl·edge", p: "NOL-ij", c: "The facts and information you have learned", t: "Silent k! It contains the word know." },
+            { w: "laugh", s: "laugh", p: "LAF", c: "What you do when something is funny", t: "The gh sounds like f." },
+            { w: "library", s: "li·brar·y", p: "LY-brair-ee", c: "A place where you can borrow books", t: "Say both r's: li-BRAR-y." },
+            { w: "muscle", s: "mus·cle", p: "MUS-ul", c: "A body part that helps you move and lift", t: "Silent c: mus-C-le." },
+            { w: "mystery", s: "mys·ter·y", p: "MIS-tuh-ree", c: "Something that is hard to explain or figure out", t: "The y in the first syllable makes a short i sound." },
+            { w: "neighbor", s: "neigh·bor", p: "NAY-ber", c: "A person who lives next door", t: "The \"ay\" sound is spelled eigh, like in eight." },
+            { w: "ocean", s: "o·cean", p: "OH-shun", c: "A huge body of salt water", t: "The \"sh\" sound is spelled ce." },
+            { w: "patience", s: "pa·tience", p: "PAY-shuns", c: "Being able to wait calmly without getting upset", t: "The \"sh\" sound is spelled ti." },
+            { w: "planet", s: "plan·et", p: "PLAN-it", c: "Earth and Mars are each one of these", t: "Ends in -et." },
+            { w: "probably", s: "prob·a·bly", p: "PROB-uh-blee", c: "Likely to happen or to be true", t: "Probable + y. Say all three syllables." },
+            { w: "receive", s: "re·ceive", p: "rih-SEEV", c: "To get something that is given or sent to you", t: "\"I before e, except after c\" — so it's c-e-i." },
+            { w: "rhythm", s: "rhy·thm", p: "RITH-um", c: "A regular, repeating beat in music", t: "Rhythm Helps Your Two Hips Move: r-h-y-t-h-m." },
+            { w: "schedule", s: "sched·ule", p: "SKEJ-ool", c: "A plan that lists the times things will happen", t: "Starts with sch, like school." },
+            { w: "science", s: "sci·ence", p: "SY-uns", c: "The study of the natural world", t: "The c after s is silent at the start: s-C-i." },
+            { w: "separate", s: "sep·a·rate", p: "SEP-uh-rayt", c: "To pull apart or keep apart", t: "There's \"a rat\" in sep-A-RAT-e." },
+            { w: "special", s: "spe·cial", p: "SPESH-ul", c: "Different from others in a good way", t: "The \"sh\" sound is spelled ci." },
+            { w: "surprise", s: "sur·prise", p: "ser-PRIZE", c: "Something you did not expect", t: "Starts with sur-, ends with -ise." },
+            { w: "temperature", s: "tem·per·a·ture", p: "TEM-per-uh-cher", c: "How hot or cold something is", t: "Don't skip the a: tem-per-A-ture." },
+            { w: "thought", s: "thought", p: "THAWT", c: "An idea you have in your mind", t: "The ough here says \"aw\", like in bought." },
+            { w: "through", s: "through", p: "THROO", c: "In one side and out the other", t: "The ough here says \"oo\"." },
+            { w: "tongue", s: "tongue", p: "TUNG", c: "The part of your mouth you use to taste", t: "The ue at the end is silent." },
+            { w: "vegetable", s: "veg·e·ta·ble", p: "VEJ-tuh-bul", c: "A plant you can eat, like a carrot or a pea", t: "Write all four syllables: veg-e-ta-ble." },
+            { w: "wednesday", s: "Wednes·day", p: "WENZ-day", c: "The day that comes after Tuesday", t: "Say it in your head as WED-NES-day to spell it." },
+            { w: "weird", s: "weird", p: "WEERD", c: "Strange or unusual", t: "A weird word that breaks the rule: e before i!" },
+            { w: "whistle", s: "whis·tle", p: "WIS-ul", c: "To make a high sound by blowing through your lips", t: "Silent h and silent t: W-h-is-T-le." }
+        ];
+
+        const TARGET_WORDS = 10;
+        const MAX_SIZE = 15;
+
+        // ---------- Puzzle generator ----------
+
+        function shuffle(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function tryBuild(candidates) {
+            const cells = new Map(); // "r,c" -> { ch, across: bool, down: bool }
+            const placed = [];
+            let minR = 0, maxR = 0, minC = 0, maxC = 0;
+            const key = (r, c) => r + "," + c;
+            const at = (r, c) => cells.get(key(r, c));
+
+            function score(word, r, c, dir) {
+                const dr = dir === "down" ? 1 : 0;
+                const dc = dir === "across" ? 1 : 0;
+                const len = word.length;
+                const nMinR = Math.min(minR, r), nMaxR = Math.max(maxR, r + dr * (len - 1));
+                const nMinC = Math.min(minC, c), nMaxC = Math.max(maxC, c + dc * (len - 1));
+                if (nMaxR - nMinR + 1 > MAX_SIZE || nMaxC - nMinC + 1 > MAX_SIZE) return -1;
+                if (at(r - dr, c - dc) || at(r + dr * len, c + dc * len)) return -1;
+                let hits = 0;
+                for (let i = 0; i < len; i++) {
+                    const rr = r + dr * i, cc = c + dc * i;
+                    const ex = at(rr, cc);
+                    if (ex) {
+                        if (ex.ch !== word[i] || ex[dir]) return -1;
+                        hits++;
+                    } else if (at(rr + dc, cc + dr) || at(rr - dc, cc - dr)) {
+                        return -1;
+                    }
+                }
+                return hits;
+            }
+
+            function place(entry, r, c, dir) {
+                const dr = dir === "down" ? 1 : 0;
+                const dc = dir === "across" ? 1 : 0;
+                const word = entry.w.toUpperCase();
+                for (let i = 0; i < word.length; i++) {
+                    const rr = r + dr * i, cc = c + dc * i;
+                    const k = key(rr, cc);
+                    const cell = cells.get(k) || { ch: word[i], across: false, down: false };
+                    cell[dir] = true;
+                    cells.set(k, cell);
+                }
+                minR = Math.min(minR, r); maxR = Math.max(maxR, r + dr * (word.length - 1));
+                minC = Math.min(minC, c); maxC = Math.max(maxC, c + dc * (word.length - 1));
+                placed.push({ entry, word, r, c, dir });
+            }
+
+            const [first, ...rest] = candidates;
+            place(first, 0, 0, "across");
+            let pending = rest;
+
+            for (let pass = 0; pass < 2 && placed.length < TARGET_WORDS; pass++) {
+                const leftover = [];
+                for (const entry of pending) {
+                    if (placed.length >= TARGET_WORDS) break;
+                    const word = entry.w.toUpperCase();
+                    let best = null;
+                    for (const [k, cell] of cells) {
+                        const [r0, c0] = k.split(",").map(Number);
+                        for (let i = 0; i < word.length; i++) {
+                            if (word[i] !== cell.ch) continue;
+                            for (const dir of ["across", "down"]) {
+                                const r = dir === "down" ? r0 - i : r0;
+                                const c = dir === "across" ? c0 - i : c0;
+                                const s = score(word, r, c, dir);
+                                if (s < 1) continue;
+                                const value = s + Math.random() * 0.5;
+                                if (!best || value > best.value) best = { r, c, dir, value };
+                            }
+                        }
+                    }
+                    if (best) place(entry, best.r, best.c, best.dir);
+                    else leftover.push(entry);
+                }
+                pending = leftover;
+            }
+
+            const area = (maxR - minR + 1) * (maxC - minC + 1);
+            return { placed, minR, minC, rows: maxR - minR + 1, cols: maxC - minC + 1, area };
+        }
+
+        function generatePuzzle() {
+            let best = null;
+            for (let attempt = 0; attempt < 80; attempt++) {
+                const pick = shuffle(WORD_BANK).slice(0, 18);
+                // Start with a long word so others have plenty to cross.
+                pick.sort((a, b) => b.w.length - a.w.length);
+                const candidates = [pick[0], ...shuffle(pick.slice(1))];
+                const result = tryBuild(candidates);
+                const value = result.placed.length * 1000 - result.area;
+                if (!best || value > best.value) best = { ...result, value };
+            }
+            return best;
+        }
+
+        // ---------- Game state ----------
+
+        const gridEl = document.getElementById("grid");
+        const acrossList = document.getElementById("acrossList");
+        const downList = document.getElementById("downList");
+        const currentClueEl = document.getElementById("currentClue");
+        const statusEl = document.getElementById("status");
+        const bannerEl = document.getElementById("banner");
+        const wallEl = document.getElementById("wall");
+        const wallEmpty = document.getElementById("wallEmpty");
+
+        let board = [];   // board[r][c] = null | { answer, el, input, across, down }
+        let words = [];   // { entry, word, r, c, dir, num, cells, solved, revealed, hinted, li }
+        let rows = 0, cols = 0;
+        let cur = { r: 0, c: 0, dir: "across" };
+        let mode = "read";
+        let hintsUsed = 0;
+
+        function newGame() {
+            const puzzle = generatePuzzle();
+            rows = puzzle.rows;
+            cols = puzzle.cols;
+            board = Array.from({ length: rows }, () => Array(cols).fill(null));
+            words = puzzle.placed.map(p => ({
+                entry: p.entry,
+                word: p.word,
+                r: p.r - puzzle.minR,
+                c: p.c - puzzle.minC,
+                dir: p.dir,
+                solved: false,
+                revealed: false,
+                hinted: false
+            }));
+
+            // Number the starting squares in reading order.
+            words.sort((a, b) => a.r - b.r || a.c - b.c);
+            let num = 0;
+            const startNums = new Map();
+            for (const w of words) {
+                const k = w.r + "," + w.c;
+                if (!startNums.has(k)) startNums.set(k, ++num);
+                w.num = startNums.get(k);
+                w.cells = [];
+                for (let i = 0; i < w.word.length; i++) {
+                    const r = w.r + (w.dir === "down" ? i : 0);
+                    const c = w.c + (w.dir === "across" ? i : 0);
+                    if (!board[r][c]) board[r][c] = { answer: w.word[i], across: null, down: null, revealed: false };
+                    board[r][c][w.dir] = w;
+                    w.cells.push([r, c]);
+                }
+            }
+
+            hintsUsed = 0;
+            bannerEl.classList.remove("show");
+            wallEl.innerHTML = "";
+            wallEmpty.style.display = "";
+            renderGrid(startNums);
+            renderClues();
+            const first = words.find(w => w.dir === "across") || words[0];
+            select(first.r, first.c, first.dir, false);
+            updateStatus();
+        }
+
+        function sizeCells() {
+            const avail = Math.min(gridEl.parentElement.clientWidth - 26, 600);
+            const size = Math.max(22, Math.min(40, Math.floor(avail / cols)));
+            document.documentElement.style.setProperty("--cell", size + "px");
+        }
+
+        function renderGrid(startNums) {
+            gridEl.innerHTML = "";
+            gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const div = document.createElement("div");
+                    div.className = "cell";
+                    const cell = board[r][c];
+                    if (cell) {
+                        div.classList.add("letter");
+                        const n = startNums.get(r + "," + c);
+                        if (n) {
+                            const span = document.createElement("span");
+                            span.className = "num";
+                            span.textContent = n;
+                            div.appendChild(span);
+                        }
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.autocomplete = "off";
+                        input.setAttribute("autocapitalize", "characters");
+                        input.setAttribute("autocorrect", "off");
+                        input.spellcheck = false;
+                        input.setAttribute("aria-label", `Row ${r + 1}, column ${c + 1}`);
+                        input.addEventListener("mousedown", e => onCellClick(e, r, c));
+                        input.addEventListener("focus", () => { if (cur.r !== r || cur.c !== c) select(r, c, null, false); });
+                        input.addEventListener("keydown", e => onKey(e, r, c));
+                        input.addEventListener("input", e => onInput(e, r, c));
+                        div.appendChild(input);
+                        cell.el = div;
+                        cell.input = input;
+                    }
+                    gridEl.appendChild(div);
+                }
+            }
+            sizeCells();
+        }
+
+        function renderClues() {
+            acrossList.innerHTML = "";
+            downList.innerHTML = "";
+            for (const w of words) {
+                const li = document.createElement("li");
+                const syllables = w.entry.s.split("·").length;
+                li.innerHTML = `
+                    <span class="n">${w.num}</span>
+                    <span>
+                        <span class="text"></span>
+                        <span class="meta">${w.word.length} letters · ${syllables} syllable${syllables > 1 ? "s" : ""}</span>
+                        <span class="sound" hidden></span>
+                    </span>
+                    <span class="clue-actions">
+                        <button type="button" class="speak" title="Hear the word" aria-label="Hear clue ${w.num} ${w.dir}">🔊</button>
+                        <button type="button" class="speak hint" title="How to sound it out" aria-label="Sound-it-out hint for ${w.num} ${w.dir}">💡</button>
+                    </span>`;
+                li.addEventListener("click", e => {
+                    if (e.target.closest("button")) return;
+                    selectWord(w);
+                });
+                li.querySelector(".speak").addEventListener("click", () => speak(w.entry.w));
+                li.querySelector(".hint").addEventListener("click", () => showHint(w));
+                w.li = li;
+                updateClueText(w);
+                (w.dir === "across" ? acrossList : downList).appendChild(li);
+            }
+        }
+
+        function clueText(w) {
+            if (mode === "listen" && !w.solved) return "🎧 Press 🔊, listen, and spell the word.";
+            return w.entry.c;
+        }
+
+        function updateClueText(w) {
+            w.li.querySelector(".text").textContent = clueText(w);
+            const sound = w.li.querySelector(".sound");
+            if (w.hinted || w.solved) {
+                sound.hidden = false;
+                sound.textContent = `Say it: ${w.entry.p}  (${w.entry.s})`;
+            } else {
+                sound.hidden = true;
+            }
+        }
+
+        // ---------- Selection ----------
+
+        function wordAt(r, c, dir) {
+            const cell = board[r] && board[r][c];
+            return cell ? cell[dir] : null;
+        }
+
+        function select(r, c, dir, focus = true) {
+            const cell = board[r][c];
+            if (!cell) return;
+            dir = dir || cur.dir;
+            if (!cell[dir]) dir = dir === "across" ? "down" : "across";
+            const changedWord = wordAt(cur.r, cur.c, cur.dir) !== cell[dir];
+            cur = { r, c, dir };
+            paintSelection();
+            if (focus && document.activeElement !== cell.input) cell.input.focus();
+            if (changedWord && mode === "listen" && focus) speak(cell[dir].entry.w);
+        }
+
+        function selectWord(w) {
+            const empty = w.cells.find(([r, c]) => !board[r][c].input.value);
+            const [r, c] = empty || w.cells[0];
+            select(r, c, w.dir);
+        }
+
+        function paintSelection() {
+            for (const row of board) for (const cell of row) {
+                if (cell) cell.el.classList.remove("active", "inword");
+            }
+            for (const w of words) w.li.classList.remove("selected");
+
+            const w = wordAt(cur.r, cur.c, cur.dir);
+            if (!w) return;
+            for (const [r, c] of w.cells) board[r][c].el.classList.add("inword");
+            board[cur.r][cur.c].el.classList.add("active");
+            w.li.classList.add("selected");
+            w.li.scrollIntoView({ block: "nearest" });
+
+            currentClueEl.innerHTML = "";
+            const label = document.createElement("span");
+            label.className = "label";
+            label.textContent = `${w.num} ${w.dir === "across" ? "Across" : "Down"}:`;
+            const text = document.createElement("span");
+            text.textContent = clueText(w);
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "speak";
+            btn.textContent = "🔊";
+            btn.title = "Hear the word";
+            btn.addEventListener("click", () => speak(w.entry.w));
+            currentClueEl.append(label, text, btn);
+        }
+
+        function onCellClick(e, r, c) {
+            if (cur.r === r && cur.c === c) {
+                e.preventDefault();
+                const other = cur.dir === "across" ? "down" : "across";
+                if (board[r][c][other]) select(r, c, other);
+            } else {
+                e.preventDefault();
+                select(r, c, null);
+            }
+        }
+
+        function step(delta) {
+            const w = wordAt(cur.r, cur.c, cur.dir);
+            const idx = w.cells.findIndex(([r, c]) => r === cur.r && c === cur.c);
+            const next = w.cells[idx + delta];
+            if (next) select(next[0], next[1], cur.dir);
+        }
+
+        function moveArrow(dr, dc) {
+            const dir = dr ? "down" : "across";
+            if (cur.dir !== dir && board[cur.r][cur.c][dir]) { select(cur.r, cur.c, dir); return; }
+            let r = cur.r + dr, c = cur.c + dc;
+            while (r >= 0 && r < rows && c >= 0 && c < cols) {
+                if (board[r][c]) { select(r, c, null); return; }
+                r += dr; c += dc;
+            }
+        }
+
+        function nextWord(back) {
+            const w = wordAt(cur.r, cur.c, cur.dir);
+            const order = [...words.filter(x => x.dir === "across"), ...words.filter(x => x.dir === "down")];
+            let i = order.indexOf(w);
+            for (let n = 0; n < order.length; n++) {
+                i = (i + (back ? -1 : 1) + order.length) % order.length;
+                if (!order[i].solved) { selectWord(order[i]); return; }
+            }
+        }
+
+        // ---------- Typing ----------
+
+        function setLetter(r, c, ch, revealed = false) {
+            const cell = board[r][c];
+            cell.input.value = ch;
+            cell.revealed = revealed;
+            cell.el.classList.remove("wrong");
+            cell.el.classList.toggle("revealed", revealed);
+        }
+
+        function onInput(e, r, c) {
+            const letters = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
+            const ch = letters.slice(-1);
+            setLetter(r, c, ch);
+            if (ch) {
+                afterChange(r, c);
+                step(1);
+            }
+        }
+
+        function onKey(e, r, c) {
+            switch (e.key) {
+                case "ArrowLeft": e.preventDefault(); moveArrow(0, -1); break;
+                case "ArrowRight": e.preventDefault(); moveArrow(0, 1); break;
+                case "ArrowUp": e.preventDefault(); moveArrow(-1, 0); break;
+                case "ArrowDown": e.preventDefault(); moveArrow(1, 0); break;
+                case "Tab":
+                case "Enter":
+                    e.preventDefault(); nextWord(e.shiftKey); break;
+                case " ": {
+                    e.preventDefault();
+                    const other = cur.dir === "across" ? "down" : "across";
+                    if (board[r][c][other]) select(r, c, other);
+                    break;
+                }
+                case "Backspace":
+                case "Delete":
+                    e.preventDefault();
+                    if (board[r][c].input.value) {
+                        setLetter(r, c, "");
+                    } else if (e.key === "Backspace") {
+                        step(-1);
+                        setLetter(cur.r, cur.c, "");
+                    }
+                    afterChange(cur.r, cur.c);
+                    break;
+                default:
+                    if (/^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        e.preventDefault();
+                        setLetter(r, c, e.key.toUpperCase());
+                        afterChange(r, c);
+                        step(1);
+                    }
+            }
+        }
+
+        function afterChange(r, c) {
+            for (const dir of ["across", "down"]) {
+                const w = board[r][c][dir];
+                if (w) checkSolved(w);
+            }
+            updateStatus();
+        }
+
+        function wordIsCorrect(w) {
+            return w.cells.every(([r, c]) => board[r][c].input.value === board[r][c].answer);
+        }
+
+        function checkSolved(w) {
+            const ok = wordIsCorrect(w);
+            if (ok && !w.solved) {
+                w.solved = true;
+                w.revealed = w.revealed || w.cells.some(([r, c]) => board[r][c].revealed);
+                for (const [r, c] of w.cells) board[r][c].el.classList.add("correct");
+                w.li.classList.add("solved");
+                updateClueText(w);
+                addToWall(w);
+                speak(w.entry.w);
+                if (words.every(x => x.solved)) celebrate();
+            } else if (!ok && w.solved) {
+                w.solved = false;
+                w.li.classList.remove("solved");
+                for (const [r, c] of w.cells) {
+                    const other = board[r][c][w.dir === "across" ? "down" : "across"];
+                    if (!other || !other.solved) board[r][c].el.classList.remove("correct");
+                }
+                updateClueText(w);
+                const card = wallEl.querySelector(`[data-key="${w.num}-${w.dir}"]`);
+                if (card) card.remove();
+                wallEmpty.style.display = wallEl.children.length ? "none" : "";
+            }
+            if (w === wordAt(cur.r, cur.c, cur.dir)) paintSelection();
+        }
+
+        // ---------- Buttons ----------
+
+        function checkCells(cells) {
+            let wrong = 0;
+            for (const [r, c] of cells) {
+                const cell = board[r][c];
+                const bad = cell.input.value && cell.input.value !== cell.answer;
+                cell.el.classList.toggle("wrong", !!bad);
+                if (bad) wrong++;
+            }
+            return wrong;
+        }
+
+        function revealCell(r, c) {
+            const cell = board[r][c];
+            if (cell.input.value === cell.answer) return;
+            setLetter(r, c, cell.answer, true);
+        }
+
+        document.getElementById("checkWord").addEventListener("click", () => {
+            const w = wordAt(cur.r, cur.c, cur.dir);
+            const wrong = checkCells(w.cells);
+            flash(wrong ? `${wrong} letter${wrong > 1 ? "s" : ""} to fix — sound it out again!` : (wordIsCorrect(w) ? "Perfect spelling! 🌟" : "So far, so good! Keep going."));
+        });
+
+        document.getElementById("checkAll").addEventListener("click", () => {
+            const all = words.flatMap(w => w.cells);
+            const wrong = checkCells(all);
+            flash(wrong ? `${wrong} letter${wrong > 1 ? "s" : ""} to fix (shown in red).` : "No mistakes so far! 👍");
+        });
+
+        document.getElementById("revealLetter").addEventListener("click", () => {
+            revealCell(cur.r, cur.c);
+            hintsUsed++;
+            afterChange(cur.r, cur.c);
+            board[cur.r][cur.c].input.focus();
+        });
+
+        document.getElementById("revealWord").addEventListener("click", () => {
+            const w = wordAt(cur.r, cur.c, cur.dir);
+            for (const [r, c] of w.cells) revealCell(r, c);
+            w.revealed = true;
+            hintsUsed++;
+            for (const [r, c] of w.cells) afterChange(r, c);
+        });
+
+        document.getElementById("clearAll").addEventListener("click", () => {
+            if (!confirm("Clear all your letters?")) return;
+            for (const w of words) {
+                for (const [r, c] of w.cells) {
+                    setLetter(r, c, "");
+                    board[r][c].el.classList.remove("correct", "wrong");
+                }
+                w.solved = false;
+                w.revealed = false;
+                w.li.classList.remove("solved");
+                updateClueText(w);
+            }
+            wallEl.innerHTML = "";
+            wallEmpty.style.display = "";
+            bannerEl.classList.remove("show");
+            paintSelection();
+            updateStatus();
+        });
+
+        document.getElementById("newPuzzle").addEventListener("click", newGame);
+        document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+        function setMode(m) {
+            mode = m;
+            document.getElementById("modeRead").setAttribute("aria-pressed", m === "read");
+            document.getElementById("modeListen").setAttribute("aria-pressed", m === "listen");
+            for (const w of words) updateClueText(w);
+            paintSelection();
+            if (m === "listen") {
+                if (!canSpeak()) flash("Sorry, this browser can't speak words out loud. Try Chrome, Edge or Safari.");
+                else speak(wordAt(cur.r, cur.c, cur.dir).entry.w);
+            }
+        }
+
+        document.getElementById("modeRead").addEventListener("click", () => setMode("read"));
+        document.getElementById("modeListen").addEventListener("click", () => setMode("listen"));
+
+        function showHint(w) {
+            if (!w.hinted) {
+                w.hinted = true;
+                hintsUsed++;
+                updateStatus();
+            }
+            updateClueText(w);
+            speak(w.entry.w, 0.6);
+        }
+
+        // ---------- Feedback ----------
+
+        let flashTimer = null;
+        function flash(msg) {
+            statusEl.textContent = msg;
+            clearTimeout(flashTimer);
+            flashTimer = setTimeout(updateStatus, 3000);
+        }
+
+        function updateStatus() {
+            const solved = words.filter(w => w.solved).length;
+            statusEl.textContent = `⭐ ${solved} / ${words.length} words spelled · 💡 hints: ${hintsUsed}`;
+        }
+
+        function addToWall(w) {
+            const card = document.createElement("div");
+            card.className = "word-card" + (w.revealed ? " was-revealed" : "");
+            card.dataset.key = `${w.num}-${w.dir}`;
+            card.innerHTML = `
+                <div class="big"></div>
+                <div class="syll"></div>
+                <div class="say"></div>
+                <div class="tip"></div>`;
+            card.querySelector(".big").textContent = w.entry.w;
+            card.querySelector(".syll").textContent = `Syllables: ${w.entry.s}`;
+            card.querySelector(".say").textContent = `Say it: ${w.entry.p}`;
+            card.querySelector(".tip").textContent = `Tip: ${w.entry.t}`;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "speak";
+            btn.textContent = "🔊";
+            btn.title = "Hear it again";
+            btn.style.float = "right";
+            btn.addEventListener("click", () => speak(w.entry.w));
+            card.prepend(btn);
+            wallEl.appendChild(card);
+            wallEmpty.style.display = "none";
+        }
+
+        function celebrate() {
+            const earned = words.filter(w => !w.revealed).length;
+            const stars = earned === words.length && hintsUsed === 0 ? "🌟🌟🌟"
+                : earned >= words.length * 0.7 ? "🌟🌟" : "🌟";
+            bannerEl.textContent = `${stars} You finished the puzzle! You spelled ${earned} of ${words.length} words on your own` +
+                ` and used ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}. Read your Word Wall out loud, then try a new puzzle!`;
+            bannerEl.classList.add("show");
+            bannerEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+
+        // ---------- Speech ----------
+
+        function canSpeak() {
+            return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+        }
+
+        function pickVoice() {
+            const voices = speechSynthesis.getVoices();
+            return voices.find(v => v.lang === "en-US" && v.localService) ||
+                voices.find(v => v.lang === "en-US") ||
+                voices.find(v => v.lang && v.lang.startsWith("en"));
+        }
+
+        function speak(text, rate = 0.85) {
+            if (!canSpeak()) return;
+            speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            const voice = pickVoice();
+            if (voice) u.voice = voice;
+            u.lang = "en-US";
+            u.rate = rate;
+            speechSynthesis.speak(u);
+        }
+
+        if (canSpeak()) speechSynthesis.getVoices();
+
+        window.addEventListener("resize", sizeCells);
+        newGame();
+    </script>
+</body>
+
+</html>
