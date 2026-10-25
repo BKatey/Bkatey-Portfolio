@@ -4,9 +4,14 @@
 const App = (function () {
     "use strict";
 
-    // Inside an embedded viewer (an iframe) printing and links back to the site don't work.
+    // Inside an embedded viewer (an iframe) or the Android/iOS app, printing and the link
+    // back to the website don't work, so those controls are hidden.
     const TOP = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
-    document.documentElement.classList.toggle("embedded", !TOP);
+    const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const STANDALONE = NATIVE || (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+    document.documentElement.classList.toggle("embedded", !TOP || NATIVE);
+    document.documentElement.classList.toggle("native", NATIVE);
+    document.documentElement.classList.toggle("standalone", STANDALONE);
 
     // ---------- Storage (always optional) ----------
 
@@ -237,10 +242,22 @@ const App = (function () {
 
     // ---------- Speech ----------
 
-    const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+    // In the Android/iOS app the WebView has no speech engine, so the native
+    // text-to-speech plugin is used instead.
+    function nativePlugin(name) {
+        const cap = window.Capacitor;
+        if (!NATIVE || !cap) return null;
+        if (cap.Plugins && cap.Plugins[name]) return cap.Plugins[name];
+        if (typeof cap.registerPlugin === "function") return cap.registerPlugin(name);
+        return null;
+    }
+
+    const nativeTts = nativePlugin("TextToSpeech");
+    const webSpeech = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+    const canSpeak = !!nativeTts || webSpeech;
 
     function englishVoices() {
-        if (!canSpeak) return [];
+        if (nativeTts || !webSpeech) return [];
         return speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
     }
 
@@ -253,17 +270,24 @@ const App = (function () {
     }
 
     function speak(text, slow) {
-        if (!canSpeak) return;
+        const rate = Math.max(0.3, settings.rate * (slow ? 0.6 : 1));
+        if (nativeTts) {
+            nativeTts.stop().catch(() => {}).then(() => nativeTts.speak({
+                text, lang: "en-US", rate, pitch: 1.0, volume: 1.0, category: "playback"
+            })).catch(() => {});
+            return;
+        }
+        if (!webSpeech) return;
         speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
         const voice = pickVoice();
         if (voice) u.voice = voice;
         u.lang = voice ? voice.lang : "en-US";
-        u.rate = Math.max(0.3, settings.rate * (slow ? 0.6 : 1));
+        u.rate = rate;
         speechSynthesis.speak(u);
     }
 
-    if (canSpeak) speechSynthesis.getVoices();
+    if (webSpeech && !nativeTts) speechSynthesis.getVoices();
 
     // ---------- Sound effects ----------
 
@@ -282,8 +306,13 @@ const App = (function () {
         osc.stop(start + dur + 0.05);
     }
 
+    const VIBRATE = { good: 30, bad: [30, 60, 30], win: [40, 60, 40, 60, 120], tap: 10 };
+
     function sfx(kind) {
         if (!settings.sfx) return;
+        if (navigator.vibrate && VIBRATE[kind]) {
+            try { navigator.vibrate(VIBRATE[kind]); } catch (e) { /* not allowed */ }
+        }
         try {
             audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === "suspended") audioCtx.resume();
@@ -594,8 +623,60 @@ const App = (function () {
         }));
     }
 
+    // ---------- Installing as an app (website version) ----------
+
+    let installEvent = null;
+    const installListeners = [];
+
+    function installState() {
+        if (NATIVE) return "native";
+        if (STANDALONE) return "installed";
+        if (!TOP) return "embedded";
+        if (installEvent) return "ready";
+        if (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return "ios";
+        return "unavailable";
+    }
+
+    function onInstallChange(fn) {
+        installListeners.push(fn);
+    }
+
+    function installChanged() {
+        const btn = document.getElementById("installBtn");
+        if (btn) btn.hidden = installState() !== "ready";
+        installListeners.forEach(fn => fn());
+    }
+
+    function promptInstall() {
+        if (!installEvent) return;
+        installEvent.prompt();
+        installEvent.userChoice.finally(() => {
+            installEvent = null;
+            installChanged();
+        });
+    }
+
+    window.addEventListener("beforeinstallprompt", e => {
+        e.preventDefault();
+        installEvent = e;
+        installChanged();
+    });
+
+    window.addEventListener("appinstalled", () => {
+        installEvent = null;
+        installChanged();
+    });
+
+    function registerOffline() {
+        if (!("serviceWorker" in navigator) || !TOP || NATIVE || !/^https?:$/.test(location.protocol)) return;
+        navigator.serviceWorker.register("sw.js").catch(() => { /* offline support is optional */ });
+    }
+
     function start() {
         applyDisplay();
+        registerOffline();
+        const installBtn = document.getElementById("installBtn");
+        if (installBtn) installBtn.addEventListener("click", promptInstall);
         setupLevelSelects();
         setupHowTo("ws");
         setupHowTo("cw");
@@ -632,7 +713,7 @@ const App = (function () {
     }
 
     return {
-        TOP, store, settings, saveSettings, LEVELS, level,
+        TOP, NATIVE, STANDALONE, store, installState, onInstallChange, promptInstall, settings, saveSettings, LEVELS, level,
         parseWordList, activeList, getCustomList, setCustomList, pickWords, shuffle,
         progress, recordFound, recordHint, recordSaid, recordPuzzle, wordStatus, resetProgress,
         canSpeak, speak, englishVoices, sfx, confetti,

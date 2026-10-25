@@ -186,6 +186,12 @@
     const rateOut = $("rateOut");
 
     function fillVoices() {
+        if (App.NATIVE) {
+            voiceSelect.closest("label").hidden = true;
+            $("voiceNote").textContent = "The app uses this device's reading voice. To change it, open your phone's " +
+                "Settings and search for \"text-to-speech\".";
+            return;
+        }
         const voices = App.englishVoices();
         voiceSelect.innerHTML = "<option value=\"\">Automatic (best English voice)</option>" +
             voices.map(v => `<option value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join("");
@@ -246,7 +252,37 @@
         App.saveSettings();
     });
 
+    // ---------- Grown-ups: installing ----------
+
+    function fillInstall() {
+        const box = $("installInfo");
+        const state = App.installState();
+        const text = {
+            native: "You're using the app. Everything works offline.",
+            installed: "The app is installed on this device. It works offline, even without the internet.",
+            embedded: "Open the website version on a phone or tablet to install it as an app.",
+            ios: "On iPhone or iPad: tap the Share button (the square with an arrow), then <strong>Add to Home Screen</strong>. " +
+                "The games then open full screen and work offline.",
+            ready: "Install the games on this device. They get their own icon, open full screen and work offline.",
+            unavailable: "On Android, open this page in Chrome and choose <strong>Install app</strong> or " +
+                "<strong>Add to Home screen</strong> from the ⋮ menu. On iPhone or iPad, use Safari's Share button, " +
+                "then <strong>Add to Home Screen</strong>."
+        }[state];
+        box.innerHTML = `<p>${text}</p>`;
+        if (state === "ready") {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "primary";
+            btn.textContent = "📲 Install app";
+            btn.addEventListener("click", App.promptInstall);
+            box.appendChild(btn);
+        }
+    }
+
+    App.onInstallChange(fillInstall);
+
     App.onTab("grownups", () => {
+        fillInstall();
         fillListForm();
         fillVoices();
         rate.value = App.settings.rate;

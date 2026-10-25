@@ -1,0 +1,9 @@
+{
+  "appId": "com.bkatey.spellinggames",
+  "appName": "Spelling Games",
+  "webDir": "www",
+  "backgroundColor": "#2457d6",
+  "android": {
+    "backgroundColor": "#2457d6"
+  }
+}

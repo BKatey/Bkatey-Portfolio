@@ -1,0 +1,24 @@
+/* Fonts are bundled so the app works offline. Both are SIL Open Font License (see fonts/OFL-*.txt). */
+@font-face {
+    font-family: "Andika";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("fonts/andika-400.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Andika";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("fonts/andika-700.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Baloo 2";
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("fonts/baloo2.woff2") format("woff2");
+}

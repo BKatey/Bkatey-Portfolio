@@ -5,9 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Spelling Word Games</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+    <meta name="description" content="Word search and crossword games that help 5th graders practice spelling and pronunciation.">
+    <meta name="theme-color" content="#2457d6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Spelling Games">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="icons/favicon-64.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="fonts.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -16,12 +23,13 @@
         <div class="brand">
             <h1>Spelling Word Games</h1>
             <p>Find it. Hear it. Say it. Spell it.</p>
+            <button type="button" class="install-btn" id="installBtn" hidden>📲 Install app</button>
         </div>
         <nav class="tabs" role="tablist" aria-label="Sections">
-            <button type="button" role="tab" id="tab-ws" data-tab="ws" aria-controls="panel-ws">🔍 Word Search</button>
-            <button type="button" role="tab" id="tab-cw" data-tab="cw" aria-controls="panel-cw">🧩 Crossword</button>
-            <button type="button" role="tab" id="tab-progress" data-tab="progress" aria-controls="panel-progress">📈 My Progress</button>
-            <button type="button" role="tab" id="tab-grownups" data-tab="grownups" aria-controls="panel-grownups">⚙️ Grown-ups</button>
+            <button type="button" role="tab" id="tab-ws" data-tab="ws" aria-controls="panel-ws"><span class="tab-icon" aria-hidden="true">🔍</span><span class="tab-label">Word Search</span></button>
+            <button type="button" role="tab" id="tab-cw" data-tab="cw" aria-controls="panel-cw"><span class="tab-icon" aria-hidden="true">🧩</span><span class="tab-label">Crossword</span></button>
+            <button type="button" role="tab" id="tab-progress" data-tab="progress" aria-controls="panel-progress"><span class="tab-icon" aria-hidden="true">📈</span><span class="tab-label">My Progress</span></button>
+            <button type="button" role="tab" id="tab-grownups" data-tab="grownups" aria-controls="panel-grownups"><span class="tab-icon" aria-hidden="true">⚙️</span><span class="tab-label">Grown-ups</span></button>
         </nav>
     </header>
 
@@ -33,7 +41,7 @@
                     <button type="button" id="wsModeRead" aria-pressed="true">📖 Read the list</button>
                     <button type="button" id="wsModeListen" aria-pressed="false">🎧 Listen &amp; find</button>
                 </div>
-                <label class="field">Level <select class="level-select" aria-label="Level"></select></label>
+                <label class="field"><span class="field-label">Level</span> <select class="level-select" aria-label="Level"></select></label>
                 <button type="button" id="wsHint">💡 Hint</button>
                 <button type="button" id="wsNew" class="primary">New puzzle</button>
                 <span class="toolbar-end">
@@ -102,7 +110,7 @@
                     <button type="button" id="cwModeRead" aria-pressed="true">📖 Read clues</button>
                     <button type="button" id="cwModeListen" aria-pressed="false">🎧 Listen &amp; spell</button>
                 </div>
-                <label class="field">Level <select class="level-select" aria-label="Level"></select></label>
+                <label class="field"><span class="field-label">Level</span> <select class="level-select" aria-label="Level"></select></label>
                 <details class="menu">
                     <summary>🛟 Help me</summary>
                     <div class="menu-list" role="menu">
@@ -247,10 +255,15 @@
                 </section>
 
                 <section class="card">
+                    <h3>📲 Use it as an app</h3>
+                    <div id="installInfo"></div>
+                </section>
+
+                <section class="card">
                     <h3>Printing and sharing</h3>
                     <p class="site-only">Each game has a <strong>🖨️ Worksheet</strong> button. It prints the puzzle on page 1
                         and an answer key with a "say it" guide on page 2. The progress page can be printed too.</p>
-                    <p class="embedded-only">Printing isn't available in this preview. Open the website version
+                    <p class="embedded-only">Printing isn't available here. Open the website version
                         to print worksheets and progress reports.</p>
                     <p class="muted small">Progress and word lists are saved in this browser on this device only.</p>
                 </section>
