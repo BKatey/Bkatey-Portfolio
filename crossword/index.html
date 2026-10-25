@@ -3,1456 +3,282 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Spelling Word Games</title>
-    <style>
-        :root {
-            --bg: #f4f7fb;
-            --panel: #ffffff;
-            --ink: #1f2937;
-            --muted: #6b7280;
-            --line: #cbd5e1;
-            --accent: #2563eb;
-            --accent-soft: #dbeafe;
-            --active: #fde68a;
-            --good: #16a34a;
-            --good-soft: #dcfce7;
-            --bad: #dc2626;
-            --bad-soft: #fee2e2;
-            --reveal: #7c3aed;
-            --cell: 36px;
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--ink);
-            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.4;
-        }
-
-        header {
-            background: var(--accent);
-            color: #fff;
-            padding: 16px;
-            text-align: center;
-        }
-
-        header h1 { margin: 0; font-size: 1.7rem; }
-        header p { margin: 4px 0 0; opacity: .9; }
-
-        main {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 16px;
-        }
-
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        button {
-            font: inherit;
-            border: 1px solid var(--line);
-            background: var(--panel);
-            color: var(--ink);
-            border-radius: 8px;
-            padding: 7px 12px;
-            cursor: pointer;
-        }
-
-        button:hover { border-color: var(--accent); }
-        button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-        button.speak { padding: 2px 8px; font-size: .95rem; }
-
-        .mode {
-            display: inline-flex;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .mode button { border: 0; border-radius: 0; }
-        .mode button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-
-        .status {
-            margin-left: auto;
-            font-weight: 600;
-        }
-
-        .layout {
-            display: grid;
-            grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
-            gap: 16px;
-            align-items: start;
-        }
-
-        .card {
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 12px;
-        }
-
-        .current-clue {
-            background: var(--accent-soft);
-            border-radius: 8px;
-            padding: 8px 10px;
-            margin-bottom: 10px;
-            min-height: 2.6em;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .current-clue .label { font-weight: 700; white-space: nowrap; }
-
-        #grid {
-            display: grid;
-            gap: 0;
-            justify-content: center;
-        }
-
-        .cell {
-            width: var(--cell);
-            height: var(--cell);
-            position: relative;
-        }
-
-        .cell.letter {
-            background: #fff;
-            border: 1px solid #475569;
-            margin: -0.5px;
-        }
-
-        .cell.inword { background: var(--accent-soft); }
-        .cell.active { background: var(--active); }
-        .cell.correct input { color: var(--good); }
-        .cell.wrong { background: var(--bad-soft); }
-        .cell.revealed input { color: var(--reveal); }
-
-        .cell .num {
-            position: absolute;
-            top: 1px;
-            left: 2px;
-            font-size: calc(var(--cell) * .28);
-            line-height: 1;
-            pointer-events: none;
-            color: #334155;
-        }
-
-        .cell input {
-            width: 100%;
-            height: 100%;
-            border: 0;
-            background: transparent;
-            text-align: center;
-            font-size: calc(var(--cell) * .55);
-            font-weight: 700;
-            text-transform: uppercase;
-            padding: calc(var(--cell) * .12) 0 0;
-            color: var(--ink);
-            caret-color: transparent;
-            cursor: pointer;
-        }
-
-        .cell input:focus { outline: none; }
-
-        .clues h2 {
-            font-size: 1.1rem;
-            margin: 4px 0 6px;
-            border-bottom: 2px solid var(--accent-soft);
-        }
-
-        .clues ol {
-            list-style: none;
-            margin: 0 0 12px;
-            padding: 0;
-        }
-
-        .clues li {
-            display: grid;
-            grid-template-columns: 2em 1fr auto;
-            gap: 6px;
-            padding: 6px;
-            border-radius: 6px;
-            cursor: pointer;
-            align-items: start;
-        }
-
-        .clues li:hover { background: var(--bg); }
-        .clues li.selected { background: var(--accent-soft); }
-        .clues li.solved .text { color: var(--good); }
-        .clues li.solved .n::after { content: " ✓"; color: var(--good); }
-        .clues .n { font-weight: 700; }
-        .clues .meta { display: block; font-size: .82rem; color: var(--muted); }
-        .clues .sound { display: block; font-size: .9rem; color: var(--reveal); font-weight: 600; }
-        .clue-actions { display: flex; gap: 4px; }
-
-        .word-wall {
-            margin-top: 16px;
-        }
-
-        .word-wall h2 { font-size: 1.1rem; margin: 0 0 8px; }
-        .word-wall .empty { color: var(--muted); margin: 0; }
-
-        .wall {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 10px;
-        }
-
-        .word-card {
-            border: 1px solid var(--line);
-            border-left: 5px solid var(--good);
-            border-radius: 8px;
-            padding: 8px 10px;
-            background: #fff;
-        }
-
-        .word-card.was-revealed { border-left-color: var(--reveal); }
-        .word-card .big { font-size: 1.3rem; font-weight: 700; letter-spacing: .04em; }
-        .word-card .syll { color: var(--muted); }
-        .word-card .say { color: var(--reveal); font-weight: 600; }
-        .word-card .tip { font-size: .88rem; margin-top: 4px; }
-
-        .banner {
-            display: none;
-            background: var(--good-soft);
-            border: 2px solid var(--good);
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 12px;
-            font-size: 1.1rem;
-        }
-
-        .banner.show { display: block; }
-
-        .help {
-            font-size: .9rem;
-            color: var(--muted);
-            margin-top: 10px;
-        }
-
-        .help kbd {
-            border: 1px solid var(--line);
-            border-radius: 4px;
-            padding: 0 4px;
-            background: #fff;
-            font-size: .8rem;
-        }
-
-        a { color: var(--accent); }
-
-        [hidden] { display: none !important; }
-
-        .tabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        .tabs button {
-            font-size: 1.05rem;
-            font-weight: 600;
-            padding: 9px 16px;
-        }
-
-        .tabs button[aria-selected="true"] {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #fff;
-        }
-
-        .check {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-        }
-
-        /* ----- Word search ----- */
-        .ws-message { min-height: 3em; }
-
-        .ws-wrap {
-            --ws-cell: 34px;
-            position: relative;
-            margin: 0 auto;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        #wsGrid {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            cursor: pointer;
-        }
-
-        .ws-cell {
-            width: var(--ws-cell);
-            height: var(--ws-cell);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: "Courier New", Consolas, monospace;
-            font-size: calc(var(--ws-cell) * .55);
-            font-weight: 700;
-            border-radius: 50%;
-        }
-
-        .ws-cell.start { box-shadow: inset 0 0 0 3px var(--accent); }
-
-        .ws-cell.hint { animation: hintPulse 0.8s ease-in-out 3; }
-
-        @keyframes hintPulse {
-            50% { background: var(--active); transform: scale(1.25); }
-        }
-
-        #wsLines {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        #wsLines .current { stroke: var(--accent); opacity: .3; }
-        #wsLines .miss { stroke: var(--bad); opacity: .35; }
-        #wsLines .strike { stroke: var(--ink); opacity: .7; }
-
-        .ws-list li {
-            grid-template-columns: 2.6em 1fr auto;
-            align-items: center;
-        }
-
-        .ws-list .ws-word { font-size: 1.1rem; text-transform: capitalize; }
-        .ws-list li.found .ws-word { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--muted); }
-        .ws-list li.found .n::after { content: " ✓"; color: var(--good); }
-
-        @media (prefers-reduced-motion: reduce) {
-            .ws-cell.hint { animation: none; background: var(--active); }
-        }
-
-        @media (max-width: 800px) {
-            .layout { grid-template-columns: minmax(0, 1fr); }
-            .status { margin-left: 0; width: 100%; }
-        }
-
-        @media print {
-            header, .tabs, .toolbar, .current-clue, .help, .clue-actions, .word-wall, .banner, footer { display: none !important; }
-            #wsLines { display: none; }
-            .ws-list li.found .ws-word { text-decoration: none; color: var(--ink); }
-            body { background: #fff; }
-            .card { border: 0; }
-            .layout { grid-template-columns: 1fr; }
-            .cell.inword, .cell.active, .cell.wrong { background: #fff; }
-            .cell input { color: transparent !important; }
-            .clues li.solved .text { color: var(--ink); }
-            .clues li.solved .n::after { content: ""; }
-            .clues .sound { display: none; }
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-    <header>
-        <h1>🔤 Spelling Word Games</h1>
-        <p>Find, hear and spell 5th grade words.</p>
+    <header class="top">
+        <div class="brand">
+            <h1>Spelling Word Games</h1>
+            <p>Find it. Hear it. Say it. Spell it.</p>
+        </div>
+        <nav class="tabs" role="tablist" aria-label="Sections">
+            <button type="button" role="tab" id="tab-ws" data-tab="ws" aria-controls="panel-ws">🔍 Word Search</button>
+            <button type="button" role="tab" id="tab-cw" data-tab="cw" aria-controls="panel-cw">🧩 Crossword</button>
+            <button type="button" role="tab" id="tab-progress" data-tab="progress" aria-controls="panel-progress">📈 My Progress</button>
+            <button type="button" role="tab" id="tab-grownups" data-tab="grownups" aria-controls="panel-grownups">⚙️ Grown-ups</button>
+        </nav>
     </header>
 
     <main>
-        <div class="tabs" role="tablist" aria-label="Choose a game">
-            <button type="button" role="tab" id="tabWs" aria-selected="true" aria-controls="wordSearchGame">🔍 Word Search</button>
-            <button type="button" role="tab" id="tabCw" aria-selected="false" aria-controls="crosswordGame">🧩 Crossword</button>
-        </div>
-
-        <div id="wordSearchGame" role="tabpanel" aria-labelledby="tabWs">
+        <!-- ================= Word search ================= -->
+        <section id="panel-ws" class="panel" role="tabpanel" aria-labelledby="tab-ws" hidden>
             <div class="toolbar">
-                <div class="mode" role="group" aria-label="Word list mode">
+                <div class="seg" role="group" aria-label="Word list">
                     <button type="button" id="wsModeRead" aria-pressed="true">📖 Read the list</button>
                     <button type="button" id="wsModeListen" aria-pressed="false">🎧 Listen &amp; find</button>
                 </div>
-                <label class="check"><input type="checkbox" id="wsHard"> Backwards words too</label>
+                <label class="field">Level <select class="level-select" aria-label="Level"></select></label>
                 <button type="button" id="wsHint">💡 Hint</button>
-                <button type="button" id="wsPrint">Print</button>
                 <button type="button" id="wsNew" class="primary">New puzzle</button>
-                <span class="status" id="wsStatus"></span>
+                <span class="toolbar-end">
+                    <button type="button" class="quiet" data-howto="ws">❓ How to play</button>
+                    <button type="button" class="quiet site-only" id="wsPrint">🖨️ Worksheet</button>
+                </span>
             </div>
 
-            <div class="banner" id="wsBanner" role="status"></div>
+            <div class="howto" id="howto-ws" hidden>
+                <div class="howto-demo" aria-hidden="true">
+                    <div class="demo-grid">
+                        <span>C</span><span>A</span><span>T</span><span>S</span>
+                        <span>X</span><span>B</span><span>O</span><span>K</span>
+                        <span>D</span><span>O</span><span>G</span><span>P</span>
+                    </div>
+                    <div class="demo-band"></div>
+                    <div class="demo-finger">👆</div>
+                </div>
+                <div class="howto-text">
+                    <h2>How to play Word Search</h2>
+                    <ol>
+                        <li>Look for a word from the list in the letters.</li>
+                        <li>Put your finger (or mouse) on the first letter and slide to the last letter. Or tap the first letter, then tap the last.</li>
+                        <li>The word gets crossed out and you'll hear it. Then say it out loud yourself!</li>
+                    </ol>
+                    <p class="muted">Keyboard: use the arrow keys to move and press Enter on the first and last letter.</p>
+                    <button type="button" class="primary howto-ok">Got it!</button>
+                </div>
+            </div>
+
+            <div class="scorebar">
+                <div class="meter" aria-hidden="true"><span id="wsBar"></span></div>
+                <span id="wsStatus" class="score"></span>
+            </div>
+
+            <div class="banner" id="wsBanner" role="status" hidden></div>
 
             <div class="layout">
-                <section class="card">
-                    <div class="current-clue ws-message" id="wsMessage" aria-live="polite">Find a word from the list and cross it out.</div>
-                    <div class="ws-wrap" id="wsWrap">
+                <section class="card play">
+                    <div class="ws-wrap" id="wsWrap" tabindex="0" role="application"
+                        aria-label="Word search letters. Use arrow keys to move and Enter to choose the first and last letter of a word.">
                         <svg id="wsLines" aria-hidden="true"></svg>
-                        <div id="wsGrid" aria-label="Word search letters"></div>
+                        <div id="wsGrid"></div>
                     </div>
-                    <p class="help">
-                        Find a word and drag across it from the first letter to the last to cross it out.
-                        You can also tap the first letter and then the last letter. Each word you find
-                        is read out loud. Say it back!
-                    </p>
+                    <div id="wsCoach"></div>
                 </section>
 
-                <section class="card clues">
+                <section class="card side">
                     <h2>Words to find</h2>
-                    <ol id="wsList" class="ws-list"></ol>
+                    <ol id="wsList" class="find-list"></ol>
+                    <p class="practice-note" id="wsPracticeNote" hidden></p>
                 </section>
             </div>
 
             <section class="card word-wall">
-                <h2>🏆 Words I Found</h2>
-                <p class="empty" id="wsWallEmpty">Each word you find will appear here with its syllables and how to say it.</p>
+                <h2>🏆 Words I found</h2>
+                <p class="muted" id="wsWallEmpty">Each word you find shows up here with its syllables and how to say it.</p>
                 <div class="wall" id="wsWall"></div>
             </section>
-        </div>
-
-        <div id="crosswordGame" role="tabpanel" aria-labelledby="tabCw" hidden>
-        <div class="toolbar">
-            <div class="mode" role="group" aria-label="Clue mode">
-                <button type="button" id="modeRead" aria-pressed="true">📖 Read clues</button>
-                <button type="button" id="modeListen" aria-pressed="false">🎧 Listen &amp; spell</button>
-            </div>
-            <button type="button" id="checkWord">Check word</button>
-            <button type="button" id="checkAll">Check puzzle</button>
-            <button type="button" id="revealLetter">Reveal letter</button>
-            <button type="button" id="revealWord">Reveal word</button>
-            <button type="button" id="clearAll">Clear</button>
-            <button type="button" id="printBtn">Print</button>
-            <button type="button" id="newPuzzle" class="primary">New puzzle</button>
-            <span class="status" id="status"></span>
-        </div>
-
-        <div class="banner" id="banner" role="status"></div>
-
-        <div class="layout">
-            <section class="card">
-                <div class="current-clue" id="currentClue" aria-live="polite"></div>
-                <div id="grid" aria-label="Crossword grid"></div>
-                <p class="help">
-                    Click a square and type. <kbd>Space</kbd> or clicking the same square switches
-                    Across/Down. <kbd>Tab</kbd> jumps to the next clue. Press 🔊 to hear a word and
-                    💡 to see how to sound it out.
-                </p>
-            </section>
-
-            <section class="card clues">
-                <h2>Across</h2>
-                <ol id="acrossList"></ol>
-                <h2>Down</h2>
-                <ol id="downList"></ol>
-            </section>
-        </div>
-
-        <section class="card word-wall">
-            <h2>🏆 My Word Wall</h2>
-            <p class="empty" id="wallEmpty">Words you spell will appear here with their syllables and sounds. Practice saying each one out loud!</p>
-            <div class="wall" id="wall"></div>
         </section>
-        </div>
 
-        <p><a href="../index.html">← Back to portfolio</a></p>
+        <!-- ================= Crossword ================= -->
+        <section id="panel-cw" class="panel" role="tabpanel" aria-labelledby="tab-cw" hidden>
+            <div class="toolbar">
+                <div class="seg" role="group" aria-label="Clues">
+                    <button type="button" id="cwModeRead" aria-pressed="true">📖 Read clues</button>
+                    <button type="button" id="cwModeListen" aria-pressed="false">🎧 Listen &amp; spell</button>
+                </div>
+                <label class="field">Level <select class="level-select" aria-label="Level"></select></label>
+                <details class="menu">
+                    <summary>🛟 Help me</summary>
+                    <div class="menu-list" role="menu">
+                        <button type="button" class="menu-item" role="menuitem" data-cw="hint">💡 Sound out this word</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="check-word">✔️ Check this word</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="check-all">✔️ Check the whole puzzle</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="reveal-letter">🔤 Show one letter</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="reveal-word">📝 Show this word</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="clear">🧹 Clear my letters</button>
+                    </div>
+                </details>
+                <button type="button" id="cwNew" class="primary">New puzzle</button>
+                <span class="toolbar-end">
+                    <button type="button" class="quiet" data-howto="cw">❓ How to play</button>
+                    <button type="button" class="quiet site-only" id="cwPrint">🖨️ Worksheet</button>
+                </span>
+            </div>
+
+            <div class="howto" id="howto-cw" hidden>
+                <div class="howto-demo cw-demo" aria-hidden="true">
+                    <div class="demo-cw">
+                        <span class="n">1</span><span>S</span><span>U</span><span>N</span>
+                    </div>
+                </div>
+                <div class="howto-text">
+                    <h2>How to play Crossword</h2>
+                    <ol>
+                        <li>Tap a clue or a square. The word you're working on turns blue.</li>
+                        <li>Read the clue or press 🔊 to hear the word, then type it.</li>
+                        <li>Tap the same square again to switch between Across and Down.</li>
+                        <li>Stuck? Open <strong>🛟 Help me</strong> to sound it out or check your letters.</li>
+                    </ol>
+                    <button type="button" class="primary howto-ok">Got it!</button>
+                </div>
+            </div>
+
+            <div class="scorebar">
+                <div class="meter" aria-hidden="true"><span id="cwBar"></span></div>
+                <span id="cwStatus" class="score"></span>
+            </div>
+
+            <div class="banner" id="cwBanner" role="status" hidden></div>
+
+            <div class="layout">
+                <section class="card play">
+                    <div class="current-clue" id="cwClue" aria-live="polite"></div>
+                    <div id="cwGrid" aria-label="Crossword grid"></div>
+                    <div id="cwCoach"></div>
+                </section>
+
+                <section class="card side clues">
+                    <h2>Across</h2>
+                    <ol id="cwAcross"></ol>
+                    <h2>Down</h2>
+                    <ol id="cwDown"></ol>
+                    <p class="practice-note" id="cwPracticeNote" hidden></p>
+                </section>
+            </div>
+
+            <section class="card word-wall">
+                <h2>🏆 Words I spelled</h2>
+                <p class="muted" id="cwWallEmpty">Words you spell show up here with their syllables and how to say them.</p>
+                <div class="wall" id="cwWall"></div>
+            </section>
+        </section>
+
+        <!-- ================= Progress ================= -->
+        <section id="panel-progress" class="panel" role="tabpanel" aria-labelledby="tab-progress" hidden>
+            <div class="toolbar">
+                <h2 class="panel-title">My Progress</h2>
+                <span class="toolbar-end">
+                    <button type="button" class="quiet site-only" id="progressPrint">🖨️ Print report</button>
+                    <button type="button" class="quiet" id="progressReset">Start over</button>
+                </span>
+            </div>
+            <div id="progressBody"></div>
+        </section>
+
+        <!-- ================= Grown-ups ================= -->
+        <section id="panel-grownups" class="panel" role="tabpanel" aria-labelledby="tab-grownups" hidden>
+            <h2 class="panel-title">For parents and teachers</h2>
+
+            <div class="settings">
+                <section class="card">
+                    <h3>Spelling words</h3>
+                    <fieldset class="radio-row">
+                        <legend class="sr-only">Which words to use</legend>
+                        <label><input type="radio" name="listSource" id="listBuiltin" value="builtin"> Built-in 5th grade words (51 words)</label>
+                        <label><input type="radio" name="listSource" id="listCustom" value="custom"> My own list</label>
+                    </fieldset>
+                    <div id="customListBox">
+                        <label class="stack" for="listName">List name
+                            <input type="text" id="listName" placeholder="Week 7 spelling words" maxlength="60">
+                        </label>
+                        <label class="stack" for="listText">Words (one per line, or separated by commas)
+                            <textarea id="listText" rows="9" spellcheck="false"
+                                placeholder="glacier: A huge, slow-moving river of ice&#10;because&#10;knowledge&#10;rhythm, castle, island"></textarea>
+                        </label>
+                        <p class="muted small">Add a clue after a colon, like <code>glacier: A huge, slow-moving river of ice</code>.
+                            Words already in the built-in list get their clue, syllables and "say it" guide automatically.
+                            Use at least 4 words, each 3 to 14 letters.</p>
+                    </div>
+                    <div class="row">
+                        <button type="button" class="primary" id="listSave">Save and make new puzzles</button>
+                    </div>
+                    <div id="listReport" class="report" aria-live="polite"></div>
+                    <div id="listPreview" class="chips"></div>
+                </section>
+
+                <section class="card">
+                    <h3>Voice and sounds</h3>
+                    <label class="stack" for="voiceSelect">Reading voice
+                        <select id="voiceSelect"></select>
+                    </label>
+                    <label class="stack" for="rate">Speaking speed: <output id="rateOut"></output>
+                        <input type="range" id="rate" min="0.5" max="1.2" step="0.05">
+                    </label>
+                    <div class="row">
+                        <button type="button" id="testVoice">🔊 Test the voice</button>
+                    </div>
+                    <p class="muted small" id="voiceNote"></p>
+                    <label class="check"><input type="checkbox" id="sfx"> Play sound effects (chimes and cheers)</label>
+                </section>
+
+                <section class="card">
+                    <h3>Display</h3>
+                    <label class="stack" for="textSize">Text size
+                        <select id="textSize">
+                            <option value="normal">Normal</option>
+                            <option value="large">Large</option>
+                            <option value="xl">Extra large</option>
+                        </select>
+                    </label>
+                    <label class="stack" for="themeSelect">Colours
+                        <select id="themeSelect">
+                            <option value="auto">Match this device</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </label>
+                    <label class="check"><input type="checkbox" id="contrast"> High contrast (black and white)</label>
+                </section>
+
+                <section class="card">
+                    <h3>Printing and sharing</h3>
+                    <p class="site-only">Each game has a <strong>🖨️ Worksheet</strong> button. It prints the puzzle on page 1
+                        and an answer key with a "say it" guide on page 2. The progress page can be printed too.</p>
+                    <p class="embedded-only">Printing isn't available in this preview. Open the website version
+                        to print worksheets and progress reports.</p>
+                    <p class="muted small">Progress and word lists are saved in this browser on this device only.</p>
+                </section>
+            </div>
+        </section>
+
+        <p class="site-only back"><a href="../index.html">← Back to portfolio</a></p>
     </main>
 
-    <script>
-        // Grade 5 spelling words.
-        // s = syllables, p = how to say it (stressed part in CAPS), c = clue, t = spelling tip
-        const WORD_BANK = [
-            { w: "adventure", s: "ad·ven·ture", p: "ad-VEN-cher", c: "An exciting or daring experience", t: "The \"cher\" sound at the end is spelled -ture, like in picture." },
-            { w: "ancient", s: "an·cient", p: "AYN-shunt", c: "Very, very old; from long ago", t: "The \"sh\" sound is spelled ci." },
-            { w: "answer", s: "an·swer", p: "AN-ser", c: "A reply to a question", t: "Silent w: an-s-W-er." },
-            { w: "beautiful", s: "beau·ti·ful", p: "BYOO-tih-ful", c: "Very pretty or lovely to look at", t: "Starts with b-e-a-u. The suffix -ful has only one l." },
-            { w: "believe", s: "be·lieve", p: "bih-LEEV", c: "To think that something is true", t: "\"I before e, except after c.\"" },
-            { w: "calendar", s: "cal·en·dar", p: "KAL-un-der", c: "A chart of the days, weeks and months of the year", t: "It ends in -ar, not -er." },
-            { w: "castle", s: "cas·tle", p: "KAS-ul", c: "A large stone home with towers where a king might live", t: "Silent t, like in whistle." },
-            { w: "character", s: "char·ac·ter", p: "KAIR-ik-ter", c: "A person or animal in a story", t: "The ch sounds like k." },
-            { w: "chocolate", s: "choc·o·late", p: "CHAWK-lit", c: "A sweet brown treat made from cacao beans", t: "Don't forget the middle o: choc-O-late." },
-            { w: "climate", s: "cli·mate", p: "KLY-mit", c: "The usual weather of a place over many years", t: "Ends with -ate, even though it sounds like \"mit\"." },
-            { w: "curious", s: "cu·ri·ous", p: "KYOOR-ee-us", c: "Eager to know or learn about something", t: "The ending -ous sounds like \"us\"." },
-            { w: "delicious", s: "de·li·cious", p: "dih-LISH-us", c: "Tastes very, very good", t: "The \"shus\" sound is spelled -cious." },
-            { w: "different", s: "dif·fer·ent", p: "DIF-er-unt", c: "Not the same", t: "Double f, and the middle syllable is -fer-." },
-            { w: "dinosaur", s: "di·no·saur", p: "DY-nuh-sor", c: "A huge reptile that lived millions of years ago", t: "Ends in -saur, which means lizard." },
-            { w: "discover", s: "dis·cov·er", p: "dis-KUV-er", c: "To find something for the first time", t: "The prefix dis- plus cover." },
-            { w: "enormous", s: "e·nor·mous", p: "ih-NOR-mus", c: "Very, very big; huge", t: "The ending -ous sounds like \"us\"." },
-            { w: "experiment", s: "ex·per·i·ment", p: "ik-SPAIR-uh-ment", c: "A test you do in science to find something out", t: "Four syllables: ex-per-i-ment." },
-            { w: "favorite", s: "fa·vor·ite", p: "FAY-ver-it", c: "The one you like the best", t: "It ends with -ite, not -it." },
-            { w: "february", s: "Feb·ru·ar·y", p: "FEB-roo-air-ee", c: "The second month of the year", t: "Don't forget the first r: Feb-R-uary." },
-            { w: "friend", s: "friend", p: "FREND", c: "Someone you like and trust", t: "A friend is there to the END: fri-END." },
-            { w: "government", s: "gov·ern·ment", p: "GUV-ern-ment", c: "The group of people who run a country or state", t: "Govern + ment. Don't drop the n!" },
-            { w: "guess", s: "guess", p: "GES", c: "To give an answer when you are not sure", t: "The u is silent and the s is doubled." },
-            { w: "height", s: "height", p: "HYTE", c: "How tall something or someone is", t: "Spelled with -eigh-, like weight, but says \"hite\"." },
-            { w: "imagine", s: "im·ag·ine", p: "ih-MAJ-in", c: "To make a picture of something in your mind", t: "The g sounds like j before i." },
-            { w: "island", s: "is·land", p: "EYE-lund", c: "Land with water all around it", t: "Silent s: i-S-land." },
-            { w: "journey", s: "jour·ney", p: "JER-nee", c: "A long trip from one place to another", t: "The \"er\" sound is spelled our here." },
-            { w: "knowledge", s: "knowl·edge", p: "NOL-ij", c: "The facts and information you have learned", t: "Silent k! It contains the word know." },
-            { w: "laugh", s: "laugh", p: "LAF", c: "What you do when something is funny", t: "The gh sounds like f." },
-            { w: "library", s: "li·brar·y", p: "LY-brair-ee", c: "A place where you can borrow books", t: "Say both r's: li-BRAR-y." },
-            { w: "muscle", s: "mus·cle", p: "MUS-ul", c: "A body part that helps you move and lift", t: "Silent c: mus-C-le." },
-            { w: "mystery", s: "mys·ter·y", p: "MIS-tuh-ree", c: "Something that is hard to explain or figure out", t: "The y in the first syllable makes a short i sound." },
-            { w: "neighbor", s: "neigh·bor", p: "NAY-ber", c: "A person who lives next door", t: "The \"ay\" sound is spelled eigh, like in eight." },
-            { w: "ocean", s: "o·cean", p: "OH-shun", c: "A huge body of salt water", t: "The \"sh\" sound is spelled ce." },
-            { w: "patience", s: "pa·tience", p: "PAY-shuns", c: "Being able to wait calmly without getting upset", t: "The \"sh\" sound is spelled ti." },
-            { w: "planet", s: "plan·et", p: "PLAN-it", c: "Earth and Mars are each one of these", t: "Ends in -et." },
-            { w: "probably", s: "prob·a·bly", p: "PROB-uh-blee", c: "Likely to happen or to be true", t: "Probable + y. Say all three syllables." },
-            { w: "receive", s: "re·ceive", p: "rih-SEEV", c: "To get something that is given or sent to you", t: "\"I before e, except after c\" — so it's c-e-i." },
-            { w: "rhythm", s: "rhy·thm", p: "RITH-um", c: "A regular, repeating beat in music", t: "Rhythm Helps Your Two Hips Move: r-h-y-t-h-m." },
-            { w: "schedule", s: "sched·ule", p: "SKEJ-ool", c: "A plan that lists the times things will happen", t: "Starts with sch, like school." },
-            { w: "science", s: "sci·ence", p: "SY-uns", c: "The study of the natural world", t: "The c after s is silent at the start: s-C-i." },
-            { w: "separate", s: "sep·a·rate", p: "SEP-uh-rayt", c: "To pull apart or keep apart", t: "There's \"a rat\" in sep-A-RAT-e." },
-            { w: "special", s: "spe·cial", p: "SPESH-ul", c: "Different from others in a good way", t: "The \"sh\" sound is spelled ci." },
-            { w: "surprise", s: "sur·prise", p: "ser-PRIZE", c: "Something you did not expect", t: "Starts with sur-, ends with -ise." },
-            { w: "temperature", s: "tem·per·a·ture", p: "TEM-per-uh-cher", c: "How hot or cold something is", t: "Don't skip the a: tem-per-A-ture." },
-            { w: "thought", s: "thought", p: "THAWT", c: "An idea you have in your mind", t: "The ough here says \"aw\", like in bought." },
-            { w: "through", s: "through", p: "THROO", c: "In one side and out the other", t: "The ough here says \"oo\"." },
-            { w: "tongue", s: "tongue", p: "TUNG", c: "The part of your mouth you use to taste", t: "The ue at the end is silent." },
-            { w: "vegetable", s: "veg·e·ta·ble", p: "VEJ-tuh-bul", c: "A plant you can eat, like a carrot or a pea", t: "Write all four syllables: veg-e-ta-ble." },
-            { w: "wednesday", s: "Wednes·day", p: "WENZ-day", c: "The day that comes after Tuesday", t: "Say it in your head as WED-NES-day to spell it." },
-            { w: "weird", s: "weird", p: "WEERD", c: "Strange or unusual", t: "A weird word that breaks the rule: e before i!" },
-            { w: "whistle", s: "whis·tle", p: "WIS-ul", c: "To make a high sound by blowing through your lips", t: "Silent h and silent t: W-h-is-T-le." }
-        ];
-
-        const TARGET_WORDS = 10;
-        const MAX_SIZE = 15;
-
-        // ---------- Puzzle generator ----------
-
-        function shuffle(arr) {
-            const a = arr.slice();
-            for (let i = a.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [a[i], a[j]] = [a[j], a[i]];
-            }
-            return a;
-        }
-
-        function tryBuild(candidates) {
-            const cells = new Map(); // "r,c" -> { ch, across: bool, down: bool }
-            const placed = [];
-            let minR = 0, maxR = 0, minC = 0, maxC = 0;
-            const key = (r, c) => r + "," + c;
-            const at = (r, c) => cells.get(key(r, c));
-
-            function score(word, r, c, dir) {
-                const dr = dir === "down" ? 1 : 0;
-                const dc = dir === "across" ? 1 : 0;
-                const len = word.length;
-                const nMinR = Math.min(minR, r), nMaxR = Math.max(maxR, r + dr * (len - 1));
-                const nMinC = Math.min(minC, c), nMaxC = Math.max(maxC, c + dc * (len - 1));
-                if (nMaxR - nMinR + 1 > MAX_SIZE || nMaxC - nMinC + 1 > MAX_SIZE) return -1;
-                if (at(r - dr, c - dc) || at(r + dr * len, c + dc * len)) return -1;
-                let hits = 0;
-                for (let i = 0; i < len; i++) {
-                    const rr = r + dr * i, cc = c + dc * i;
-                    const ex = at(rr, cc);
-                    if (ex) {
-                        if (ex.ch !== word[i] || ex[dir]) return -1;
-                        hits++;
-                    } else if (at(rr + dc, cc + dr) || at(rr - dc, cc - dr)) {
-                        return -1;
-                    }
-                }
-                return hits;
-            }
-
-            function place(entry, r, c, dir) {
-                const dr = dir === "down" ? 1 : 0;
-                const dc = dir === "across" ? 1 : 0;
-                const word = entry.w.toUpperCase();
-                for (let i = 0; i < word.length; i++) {
-                    const rr = r + dr * i, cc = c + dc * i;
-                    const k = key(rr, cc);
-                    const cell = cells.get(k) || { ch: word[i], across: false, down: false };
-                    cell[dir] = true;
-                    cells.set(k, cell);
-                }
-                minR = Math.min(minR, r); maxR = Math.max(maxR, r + dr * (word.length - 1));
-                minC = Math.min(minC, c); maxC = Math.max(maxC, c + dc * (word.length - 1));
-                placed.push({ entry, word, r, c, dir });
-            }
-
-            const [first, ...rest] = candidates;
-            place(first, 0, 0, "across");
-            let pending = rest;
-
-            for (let pass = 0; pass < 2 && placed.length < TARGET_WORDS; pass++) {
-                const leftover = [];
-                for (const entry of pending) {
-                    if (placed.length >= TARGET_WORDS) break;
-                    const word = entry.w.toUpperCase();
-                    let best = null;
-                    for (const [k, cell] of cells) {
-                        const [r0, c0] = k.split(",").map(Number);
-                        for (let i = 0; i < word.length; i++) {
-                            if (word[i] !== cell.ch) continue;
-                            for (const dir of ["across", "down"]) {
-                                const r = dir === "down" ? r0 - i : r0;
-                                const c = dir === "across" ? c0 - i : c0;
-                                const s = score(word, r, c, dir);
-                                if (s < 1) continue;
-                                const value = s + Math.random() * 0.5;
-                                if (!best || value > best.value) best = { r, c, dir, value };
-                            }
-                        }
-                    }
-                    if (best) place(entry, best.r, best.c, best.dir);
-                    else leftover.push(entry);
-                }
-                pending = leftover;
-            }
-
-            const area = (maxR - minR + 1) * (maxC - minC + 1);
-            return { placed, minR, minC, rows: maxR - minR + 1, cols: maxC - minC + 1, area };
-        }
-
-        function generatePuzzle() {
-            let best = null;
-            for (let attempt = 0; attempt < 80; attempt++) {
-                const pick = shuffle(WORD_BANK).slice(0, 18);
-                // Start with a long word so others have plenty to cross.
-                pick.sort((a, b) => b.w.length - a.w.length);
-                const candidates = [pick[0], ...shuffle(pick.slice(1))];
-                const result = tryBuild(candidates);
-                const value = result.placed.length * 1000 - result.area;
-                if (!best || value > best.value) best = { ...result, value };
-            }
-            return best;
-        }
-
-        // ---------- Game state ----------
-
-        const gridEl = document.getElementById("grid");
-        const acrossList = document.getElementById("acrossList");
-        const downList = document.getElementById("downList");
-        const currentClueEl = document.getElementById("currentClue");
-        const statusEl = document.getElementById("status");
-        const bannerEl = document.getElementById("banner");
-        const wallEl = document.getElementById("wall");
-        const wallEmpty = document.getElementById("wallEmpty");
-
-        let board = [];   // board[r][c] = null | { answer, el, input, across, down }
-        let words = [];   // { entry, word, r, c, dir, num, cells, solved, revealed, hinted, li }
-        let rows = 0, cols = 0;
-        let cur = { r: 0, c: 0, dir: "across" };
-        let mode = "read";
-        let hintsUsed = 0;
-
-        function newGame() {
-            const puzzle = generatePuzzle();
-            rows = puzzle.rows;
-            cols = puzzle.cols;
-            board = Array.from({ length: rows }, () => Array(cols).fill(null));
-            words = puzzle.placed.map(p => ({
-                entry: p.entry,
-                word: p.word,
-                r: p.r - puzzle.minR,
-                c: p.c - puzzle.minC,
-                dir: p.dir,
-                solved: false,
-                revealed: false,
-                hinted: false
-            }));
-
-            // Number the starting squares in reading order.
-            words.sort((a, b) => a.r - b.r || a.c - b.c);
-            let num = 0;
-            const startNums = new Map();
-            for (const w of words) {
-                const k = w.r + "," + w.c;
-                if (!startNums.has(k)) startNums.set(k, ++num);
-                w.num = startNums.get(k);
-                w.cells = [];
-                for (let i = 0; i < w.word.length; i++) {
-                    const r = w.r + (w.dir === "down" ? i : 0);
-                    const c = w.c + (w.dir === "across" ? i : 0);
-                    if (!board[r][c]) board[r][c] = { answer: w.word[i], across: null, down: null, revealed: false };
-                    board[r][c][w.dir] = w;
-                    w.cells.push([r, c]);
-                }
-            }
-
-            hintsUsed = 0;
-            bannerEl.classList.remove("show");
-            wallEl.innerHTML = "";
-            wallEmpty.style.display = "";
-            renderGrid(startNums);
-            renderClues();
-            const first = words.find(w => w.dir === "across") || words[0];
-            select(first.r, first.c, first.dir, false);
-            updateStatus();
-        }
-
-        function sizeCells() {
-            const avail = Math.min(gridEl.parentElement.clientWidth - 26, 600);
-            const size = Math.max(22, Math.min(40, Math.floor(avail / cols)));
-            document.documentElement.style.setProperty("--cell", size + "px");
-        }
-
-        function renderGrid(startNums) {
-            gridEl.innerHTML = "";
-            gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const div = document.createElement("div");
-                    div.className = "cell";
-                    const cell = board[r][c];
-                    if (cell) {
-                        div.classList.add("letter");
-                        const n = startNums.get(r + "," + c);
-                        if (n) {
-                            const span = document.createElement("span");
-                            span.className = "num";
-                            span.textContent = n;
-                            div.appendChild(span);
-                        }
-                        const input = document.createElement("input");
-                        input.type = "text";
-                        input.autocomplete = "off";
-                        input.setAttribute("autocapitalize", "characters");
-                        input.setAttribute("autocorrect", "off");
-                        input.spellcheck = false;
-                        input.setAttribute("aria-label", `Row ${r + 1}, column ${c + 1}`);
-                        input.addEventListener("mousedown", e => onCellClick(e, r, c));
-                        input.addEventListener("focus", () => { if (cur.r !== r || cur.c !== c) select(r, c, null, false); });
-                        input.addEventListener("keydown", e => onKey(e, r, c));
-                        input.addEventListener("input", e => onInput(e, r, c));
-                        div.appendChild(input);
-                        cell.el = div;
-                        cell.input = input;
-                    }
-                    gridEl.appendChild(div);
-                }
-            }
-            sizeCells();
-        }
-
-        function renderClues() {
-            acrossList.innerHTML = "";
-            downList.innerHTML = "";
-            for (const w of words) {
-                const li = document.createElement("li");
-                const syllables = w.entry.s.split("·").length;
-                li.innerHTML = `
-                    <span class="n">${w.num}</span>
-                    <span>
-                        <span class="text"></span>
-                        <span class="meta">${w.word.length} letters · ${syllables} syllable${syllables > 1 ? "s" : ""}</span>
-                        <span class="sound" hidden></span>
-                    </span>
-                    <span class="clue-actions">
-                        <button type="button" class="speak" title="Hear the word" aria-label="Hear clue ${w.num} ${w.dir}">🔊</button>
-                        <button type="button" class="speak hint" title="How to sound it out" aria-label="Sound-it-out hint for ${w.num} ${w.dir}">💡</button>
-                    </span>`;
-                li.addEventListener("click", e => {
-                    if (e.target.closest("button")) return;
-                    selectWord(w);
-                });
-                li.querySelector(".speak").addEventListener("click", () => speak(w.entry.w));
-                li.querySelector(".hint").addEventListener("click", () => showHint(w));
-                w.li = li;
-                updateClueText(w);
-                (w.dir === "across" ? acrossList : downList).appendChild(li);
-            }
-        }
-
-        function clueText(w) {
-            if (mode === "listen" && !w.solved) return "🎧 Press 🔊, listen, and spell the word.";
-            return w.entry.c;
-        }
-
-        function updateClueText(w) {
-            w.li.querySelector(".text").textContent = clueText(w);
-            const sound = w.li.querySelector(".sound");
-            if (w.hinted || w.solved) {
-                sound.hidden = false;
-                sound.textContent = `Say it: ${w.entry.p}  (${w.entry.s})`;
-            } else {
-                sound.hidden = true;
-            }
-        }
-
-        // ---------- Selection ----------
-
-        function wordAt(r, c, dir) {
-            const cell = board[r] && board[r][c];
-            return cell ? cell[dir] : null;
-        }
-
-        function select(r, c, dir, focus = true) {
-            const cell = board[r][c];
-            if (!cell) return;
-            dir = dir || cur.dir;
-            if (!cell[dir]) dir = dir === "across" ? "down" : "across";
-            const changedWord = wordAt(cur.r, cur.c, cur.dir) !== cell[dir];
-            cur = { r, c, dir };
-            paintSelection();
-            if (focus && document.activeElement !== cell.input) cell.input.focus();
-            if (changedWord && mode === "listen" && focus) speak(cell[dir].entry.w);
-        }
-
-        function selectWord(w) {
-            const empty = w.cells.find(([r, c]) => !board[r][c].input.value);
-            const [r, c] = empty || w.cells[0];
-            select(r, c, w.dir);
-        }
-
-        function paintSelection() {
-            for (const row of board) for (const cell of row) {
-                if (cell) cell.el.classList.remove("active", "inword");
-            }
-            for (const w of words) w.li.classList.remove("selected");
-
-            const w = wordAt(cur.r, cur.c, cur.dir);
-            if (!w) return;
-            for (const [r, c] of w.cells) board[r][c].el.classList.add("inword");
-            board[cur.r][cur.c].el.classList.add("active");
-            w.li.classList.add("selected");
-            w.li.scrollIntoView({ block: "nearest" });
-
-            currentClueEl.innerHTML = "";
-            const label = document.createElement("span");
-            label.className = "label";
-            label.textContent = `${w.num} ${w.dir === "across" ? "Across" : "Down"}:`;
-            const text = document.createElement("span");
-            text.textContent = clueText(w);
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "speak";
-            btn.textContent = "🔊";
-            btn.title = "Hear the word";
-            btn.addEventListener("click", () => speak(w.entry.w));
-            currentClueEl.append(label, text, btn);
-        }
-
-        function onCellClick(e, r, c) {
-            if (cur.r === r && cur.c === c) {
-                e.preventDefault();
-                const other = cur.dir === "across" ? "down" : "across";
-                if (board[r][c][other]) select(r, c, other);
-            } else {
-                e.preventDefault();
-                select(r, c, null);
-            }
-        }
-
-        function step(delta) {
-            const w = wordAt(cur.r, cur.c, cur.dir);
-            const idx = w.cells.findIndex(([r, c]) => r === cur.r && c === cur.c);
-            const next = w.cells[idx + delta];
-            if (next) select(next[0], next[1], cur.dir);
-        }
-
-        function moveArrow(dr, dc) {
-            const dir = dr ? "down" : "across";
-            if (cur.dir !== dir && board[cur.r][cur.c][dir]) { select(cur.r, cur.c, dir); return; }
-            let r = cur.r + dr, c = cur.c + dc;
-            while (r >= 0 && r < rows && c >= 0 && c < cols) {
-                if (board[r][c]) { select(r, c, null); return; }
-                r += dr; c += dc;
-            }
-        }
-
-        function nextWord(back) {
-            const w = wordAt(cur.r, cur.c, cur.dir);
-            const order = [...words.filter(x => x.dir === "across"), ...words.filter(x => x.dir === "down")];
-            let i = order.indexOf(w);
-            for (let n = 0; n < order.length; n++) {
-                i = (i + (back ? -1 : 1) + order.length) % order.length;
-                if (!order[i].solved) { selectWord(order[i]); return; }
-            }
-        }
-
-        // ---------- Typing ----------
-
-        function setLetter(r, c, ch, revealed = false) {
-            const cell = board[r][c];
-            cell.input.value = ch;
-            cell.revealed = revealed;
-            cell.el.classList.remove("wrong");
-            cell.el.classList.toggle("revealed", revealed);
-        }
-
-        function onInput(e, r, c) {
-            const letters = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
-            const ch = letters.slice(-1);
-            setLetter(r, c, ch);
-            if (ch) {
-                afterChange(r, c);
-                step(1);
-            }
-        }
-
-        function onKey(e, r, c) {
-            switch (e.key) {
-                case "ArrowLeft": e.preventDefault(); moveArrow(0, -1); break;
-                case "ArrowRight": e.preventDefault(); moveArrow(0, 1); break;
-                case "ArrowUp": e.preventDefault(); moveArrow(-1, 0); break;
-                case "ArrowDown": e.preventDefault(); moveArrow(1, 0); break;
-                case "Tab":
-                case "Enter":
-                    e.preventDefault(); nextWord(e.shiftKey); break;
-                case " ": {
-                    e.preventDefault();
-                    const other = cur.dir === "across" ? "down" : "across";
-                    if (board[r][c][other]) select(r, c, other);
-                    break;
-                }
-                case "Backspace":
-                case "Delete":
-                    e.preventDefault();
-                    if (board[r][c].input.value) {
-                        setLetter(r, c, "");
-                    } else if (e.key === "Backspace") {
-                        step(-1);
-                        setLetter(cur.r, cur.c, "");
-                    }
-                    afterChange(cur.r, cur.c);
-                    break;
-                default:
-                    if (/^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                        e.preventDefault();
-                        setLetter(r, c, e.key.toUpperCase());
-                        afterChange(r, c);
-                        step(1);
-                    }
-            }
-        }
-
-        function afterChange(r, c) {
-            for (const dir of ["across", "down"]) {
-                const w = board[r][c][dir];
-                if (w) checkSolved(w);
-            }
-            updateStatus();
-        }
-
-        function wordIsCorrect(w) {
-            return w.cells.every(([r, c]) => board[r][c].input.value === board[r][c].answer);
-        }
-
-        function checkSolved(w) {
-            const ok = wordIsCorrect(w);
-            if (ok && !w.solved) {
-                w.solved = true;
-                w.revealed = w.revealed || w.cells.some(([r, c]) => board[r][c].revealed);
-                for (const [r, c] of w.cells) board[r][c].el.classList.add("correct");
-                w.li.classList.add("solved");
-                updateClueText(w);
-                addToWall(w);
-                speak(w.entry.w);
-                if (words.every(x => x.solved)) celebrate();
-            } else if (!ok && w.solved) {
-                w.solved = false;
-                w.li.classList.remove("solved");
-                for (const [r, c] of w.cells) {
-                    const other = board[r][c][w.dir === "across" ? "down" : "across"];
-                    if (!other || !other.solved) board[r][c].el.classList.remove("correct");
-                }
-                updateClueText(w);
-                const card = wallEl.querySelector(`[data-key="${w.num}-${w.dir}"]`);
-                if (card) card.remove();
-                wallEmpty.style.display = wallEl.children.length ? "none" : "";
-            }
-            if (w === wordAt(cur.r, cur.c, cur.dir)) paintSelection();
-        }
-
-        // ---------- Buttons ----------
-
-        function checkCells(cells) {
-            let wrong = 0;
-            for (const [r, c] of cells) {
-                const cell = board[r][c];
-                const bad = cell.input.value && cell.input.value !== cell.answer;
-                cell.el.classList.toggle("wrong", !!bad);
-                if (bad) wrong++;
-            }
-            return wrong;
-        }
-
-        function revealCell(r, c) {
-            const cell = board[r][c];
-            if (cell.input.value === cell.answer) return;
-            setLetter(r, c, cell.answer, true);
-        }
-
-        document.getElementById("checkWord").addEventListener("click", () => {
-            const w = wordAt(cur.r, cur.c, cur.dir);
-            const wrong = checkCells(w.cells);
-            flash(wrong ? `${wrong} letter${wrong > 1 ? "s" : ""} to fix — sound it out again!` : (wordIsCorrect(w) ? "Perfect spelling! 🌟" : "So far, so good! Keep going."));
-        });
-
-        document.getElementById("checkAll").addEventListener("click", () => {
-            const all = words.flatMap(w => w.cells);
-            const wrong = checkCells(all);
-            flash(wrong ? `${wrong} letter${wrong > 1 ? "s" : ""} to fix (shown in red).` : "No mistakes so far! 👍");
-        });
-
-        document.getElementById("revealLetter").addEventListener("click", () => {
-            revealCell(cur.r, cur.c);
-            hintsUsed++;
-            afterChange(cur.r, cur.c);
-            board[cur.r][cur.c].input.focus();
-        });
-
-        document.getElementById("revealWord").addEventListener("click", () => {
-            const w = wordAt(cur.r, cur.c, cur.dir);
-            for (const [r, c] of w.cells) revealCell(r, c);
-            w.revealed = true;
-            hintsUsed++;
-            for (const [r, c] of w.cells) afterChange(r, c);
-        });
-
-        document.getElementById("clearAll").addEventListener("click", () => {
-            if (!confirm("Clear all your letters?")) return;
-            for (const w of words) {
-                for (const [r, c] of w.cells) {
-                    setLetter(r, c, "");
-                    board[r][c].el.classList.remove("correct", "wrong");
-                }
-                w.solved = false;
-                w.revealed = false;
-                w.li.classList.remove("solved");
-                updateClueText(w);
-            }
-            wallEl.innerHTML = "";
-            wallEmpty.style.display = "";
-            bannerEl.classList.remove("show");
-            paintSelection();
-            updateStatus();
-        });
-
-        document.getElementById("newPuzzle").addEventListener("click", newGame);
-        document.getElementById("printBtn").addEventListener("click", () => window.print());
-
-        function setMode(m) {
-            mode = m;
-            document.getElementById("modeRead").setAttribute("aria-pressed", m === "read");
-            document.getElementById("modeListen").setAttribute("aria-pressed", m === "listen");
-            for (const w of words) updateClueText(w);
-            paintSelection();
-            if (m === "listen") {
-                if (!canSpeak()) flash("Sorry, this browser can't speak words out loud. Try Chrome, Edge or Safari.");
-                else speak(wordAt(cur.r, cur.c, cur.dir).entry.w);
-            }
-        }
-
-        document.getElementById("modeRead").addEventListener("click", () => setMode("read"));
-        document.getElementById("modeListen").addEventListener("click", () => setMode("listen"));
-
-        function showHint(w) {
-            if (!w.hinted) {
-                w.hinted = true;
-                hintsUsed++;
-                updateStatus();
-            }
-            updateClueText(w);
-            speak(w.entry.w, 0.6);
-        }
-
-        // ---------- Feedback ----------
-
-        let flashTimer = null;
-        function flash(msg) {
-            statusEl.textContent = msg;
-            clearTimeout(flashTimer);
-            flashTimer = setTimeout(updateStatus, 3000);
-        }
-
-        function updateStatus() {
-            const solved = words.filter(w => w.solved).length;
-            statusEl.textContent = `⭐ ${solved} / ${words.length} words spelled · 💡 hints: ${hintsUsed}`;
-        }
-
-        function makeWordCard(entry, revealed) {
-            const card = document.createElement("div");
-            card.className = "word-card" + (revealed ? " was-revealed" : "");
-            card.innerHTML = `
-                <div class="big"></div>
-                <div class="syll"></div>
-                <div class="say"></div>
-                <div class="tip"></div>`;
-            card.querySelector(".big").textContent = entry.w;
-            card.querySelector(".syll").textContent = `Syllables: ${entry.s}`;
-            card.querySelector(".say").textContent = `Say it: ${entry.p}`;
-            card.querySelector(".tip").textContent = `Tip: ${entry.t}`;
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "speak";
-            btn.textContent = "🔊";
-            btn.title = "Hear it again";
-            btn.style.float = "right";
-            btn.addEventListener("click", () => speak(entry.w));
-            card.prepend(btn);
-            return card;
-        }
-
-        function addToWall(w) {
-            const card = makeWordCard(w.entry, w.revealed);
-            card.dataset.key = `${w.num}-${w.dir}`;
-            wallEl.appendChild(card);
-            wallEmpty.style.display = "none";
-        }
-
-        function celebrate() {
-            const earned = words.filter(w => !w.revealed).length;
-            const stars = earned === words.length && hintsUsed === 0 ? "🌟🌟🌟"
-                : earned >= words.length * 0.7 ? "🌟🌟" : "🌟";
-            bannerEl.textContent = `${stars} You finished the puzzle! You spelled ${earned} of ${words.length} words on your own` +
-                ` and used ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}. Read your Word Wall out loud, then try a new puzzle!`;
-            bannerEl.classList.add("show");
-            bannerEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }
-
-        // ---------- Speech ----------
-
-        function canSpeak() {
-            return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
-        }
-
-        function pickVoice() {
-            const voices = speechSynthesis.getVoices();
-            return voices.find(v => v.lang === "en-US" && v.localService) ||
-                voices.find(v => v.lang === "en-US") ||
-                voices.find(v => v.lang && v.lang.startsWith("en"));
-        }
-
-        function speak(text, rate = 0.85) {
-            if (!canSpeak()) return;
-            speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            const voice = pickVoice();
-            if (voice) u.voice = voice;
-            u.lang = "en-US";
-            u.rate = rate;
-            speechSynthesis.speak(u);
-        }
-
-        if (canSpeak()) speechSynthesis.getVoices();
-
-        // ---------- Word search ----------
-
-        const WS_SIZE = 12;
-        const WS_COUNT = 10;
-        const WS_DIRS = [[0, 1], [1, 0], [1, 1], [-1, 1]];
-        const WS_DIRS_BACKWARDS = [[0, -1], [-1, 0], [-1, -1], [1, -1]];
-        const WS_COLORS = ["#facc15", "#4ade80", "#60a5fa", "#f472b6", "#fb923c", "#a78bfa"];
-        const SVG_NS = "http://www.w3.org/2000/svg";
-
-        const wsWrap = document.getElementById("wsWrap");
-        const wsGridEl = document.getElementById("wsGrid");
-        const wsLinesEl = document.getElementById("wsLines");
-        const wsListEl = document.getElementById("wsList");
-        const wsStatusEl = document.getElementById("wsStatus");
-        const wsMessageEl = document.getElementById("wsMessage");
-        const wsBannerEl = document.getElementById("wsBanner");
-        const wsWallEl = document.getElementById("wsWall");
-        const wsWallEmpty = document.getElementById("wsWallEmpty");
-
-        const ws = { letters: [], words: [], cells: [], mode: "read", hints: 0, drag: null, pending: null };
-
-        function wsGenerate(backwards) {
-            const dirs = backwards ? [...WS_DIRS, ...WS_DIRS_BACKWARDS] : WS_DIRS;
-            const rand = n => Math.floor(Math.random() * n);
-            for (let attempt = 0; attempt < 50; attempt++) {
-                const letters = Array.from({ length: WS_SIZE }, () => Array(WS_SIZE).fill(""));
-                const placed = [];
-                for (const entry of shuffle(WORD_BANK)) {
-                    if (placed.length >= WS_COUNT) break;
-                    const word = entry.w.toUpperCase();
-                    if (word.length > WS_SIZE) continue;
-                    if (placed.some(p => p.word.includes(word) || word.includes(p.word))) continue;
-                    for (let t = 0; t < 200; t++) {
-                        const [dr, dc] = dirs[rand(dirs.length)];
-                        const r = rand(WS_SIZE), c = rand(WS_SIZE);
-                        const er = r + dr * (word.length - 1), ec = c + dc * (word.length - 1);
-                        if (er < 0 || er >= WS_SIZE || ec < 0 || ec >= WS_SIZE) continue;
-                        let ok = true;
-                        for (let i = 0; i < word.length && ok; i++) {
-                            const ch = letters[r + dr * i][c + dc * i];
-                            if (ch && ch !== word[i]) ok = false;
-                        }
-                        if (!ok) continue;
-                        for (let i = 0; i < word.length; i++) letters[r + dr * i][c + dc * i] = word[i];
-                        placed.push({ entry, word, r, c, dr, dc, found: false });
-                        break;
-                    }
-                }
-                if (placed.length < WS_COUNT) continue;
-                const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                for (const row of letters) for (let c = 0; c < WS_SIZE; c++) {
-                    if (!row[c]) row[c] = abc[rand(abc.length)];
-                }
-                placed.sort((a, b) => a.word.localeCompare(b.word));
-                return { letters, placed };
-            }
-        }
-
-        function wsNewGame() {
-            const { letters, placed } = wsGenerate(document.getElementById("wsHard").checked);
-            ws.letters = letters;
-            ws.words = placed;
-            ws.hints = 0;
-            ws.drag = null;
-            ws.pending = null;
-
-            wsGridEl.innerHTML = "";
-            wsGridEl.style.gridTemplateColumns = `repeat(${WS_SIZE}, var(--ws-cell))`;
-            ws.cells = letters.map(row => row.map(ch => {
-                const div = document.createElement("div");
-                div.className = "ws-cell";
-                div.textContent = ch;
-                wsGridEl.appendChild(div);
-                return div;
-            }));
-
-            wsLinesEl.setAttribute("viewBox", `0 0 ${WS_SIZE} ${WS_SIZE}`);
-            wsLinesEl.innerHTML = "";
-            ws.currentLine = svgLine("current", 0.72);
-            ws.currentLine.style.display = "none";
-
-            wsBannerEl.classList.remove("show");
-            wsWallEl.innerHTML = "";
-            wsWallEmpty.hidden = false;
-            wsRenderList();
-            wsSize();
-            wsUpdateStatus();
-            wsFlash("Find a word from the list and cross it out.");
-        }
-
-        function wsRenderList() {
-            wsListEl.innerHTML = "";
-            ws.words.forEach((w, i) => {
-                const li = document.createElement("li");
-                li.innerHTML = `<span class="n">${i + 1}</span><span class="ws-word"></span>
-                    <span class="clue-actions"><button type="button" class="speak" title="Hear the word">🔊</button></span>`;
-                const label = li.querySelector(".ws-word");
-                if (ws.mode === "listen" && !w.found) {
-                    label.textContent = `${w.word.length} letters`;
-                    label.style.textTransform = "none";
-                } else {
-                    label.textContent = w.entry.w;
-                }
-                li.querySelector("button").addEventListener("click", () => speak(w.entry.w));
-                li.classList.toggle("found", w.found);
-                w.li = li;
-                wsListEl.appendChild(li);
-            });
-        }
-
-        function wsSize() {
-            const avail = wsWrap.parentElement.clientWidth - 26;
-            if (avail <= 0) return;
-            const size = Math.max(22, Math.min(42, Math.floor(avail / WS_SIZE)));
-            wsWrap.style.setProperty("--ws-cell", size + "px");
-            wsWrap.style.width = size * WS_SIZE + "px";
-        }
-
-        function svgLine(cls, width, color) {
-            const line = document.createElementNS(SVG_NS, "line");
-            line.setAttribute("class", cls);
-            line.setAttribute("stroke-width", width);
-            line.setAttribute("stroke-linecap", "round");
-            if (color) line.setAttribute("stroke", color);
-            wsLinesEl.appendChild(line);
-            return line;
-        }
-
-        function placeLine(line, a, b) {
-            line.setAttribute("x1", a.c + 0.5);
-            line.setAttribute("y1", a.r + 0.5);
-            line.setAttribute("x2", b.c + 0.5);
-            line.setAttribute("y2", b.r + 0.5);
-        }
-
-        function wsCellAt(e) {
-            const rect = wsGridEl.getBoundingClientRect();
-            const size = rect.width / WS_SIZE;
-            const clamp = v => Math.max(0, Math.min(WS_SIZE - 1, v));
-            return {
-                r: clamp(Math.floor((e.clientY - rect.top) / size)),
-                c: clamp(Math.floor((e.clientX - rect.left) / size))
-            };
-        }
-
-        // Snap any drag to the nearest straight or diagonal line that stays on the grid.
-        function wsSnap(start, target) {
-            const dr = target.r - start.r, dc = target.c - start.c;
-            if (!dr && !dc) return start;
-            const step = Math.round(Math.atan2(dr, dc) / (Math.PI / 4));
-            const sr = Math.round(Math.sin(step * Math.PI / 4));
-            const sc = Math.round(Math.cos(step * Math.PI / 4));
-            let len = Math.max(Math.abs(dr), Math.abs(dc));
-            const inside = n => {
-                const r = start.r + sr * n, c = start.c + sc * n;
-                return r >= 0 && r < WS_SIZE && c >= 0 && c < WS_SIZE;
-            };
-            while (len > 0 && !inside(len)) len--;
-            return { r: start.r + sr * len, c: start.c + sc * len };
-        }
-
-        function wsPath(a, b) {
-            const len = Math.max(Math.abs(b.r - a.r), Math.abs(b.c - a.c));
-            const sr = Math.sign(b.r - a.r), sc = Math.sign(b.c - a.c);
-            return Array.from({ length: len + 1 }, (_, i) => ({ r: a.r + sr * i, c: a.c + sc * i }));
-        }
-
-        function wsSetPending(cell) {
-            if (ws.pending) ws.cells[ws.pending.r][ws.pending.c].classList.remove("start");
-            ws.pending = cell;
-            if (cell) ws.cells[cell.r][cell.c].classList.add("start");
-        }
-
-        wsGridEl.addEventListener("pointerdown", e => {
-            e.preventDefault();
-            const cell = wsCellAt(e);
-            try { wsGridEl.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
-            ws.drag = { start: cell, end: cell };
-            ws.currentLine.style.display = "";
-            placeLine(ws.currentLine, ws.pending || cell, ws.pending ? wsSnap(ws.pending, cell) : cell);
-        });
-
-        wsGridEl.addEventListener("pointermove", e => {
-            if (!ws.drag) return;
-            const end = wsSnap(ws.drag.start, wsCellAt(e));
-            ws.drag.end = end;
-            placeLine(ws.currentLine, ws.drag.start, end);
-        });
-
-        wsGridEl.addEventListener("pointerup", () => {
-            if (!ws.drag) return;
-            const { start, end } = ws.drag;
-            ws.drag = null;
-            ws.currentLine.style.display = "none";
-            const isTap = start.r === end.r && start.c === end.c;
-            if (!isTap) {
-                wsSetPending(null);
-                wsCheck(start, end);
-            } else if (!ws.pending) {
-                wsSetPending(start);
-            } else if (ws.pending.r === start.r && ws.pending.c === start.c) {
-                wsSetPending(null);
-            } else {
-                const from = ws.pending;
-                wsSetPending(null);
-                wsCheck(from, wsSnap(from, start));
-            }
-        });
-
-        wsGridEl.addEventListener("pointercancel", () => {
-            ws.drag = null;
-            ws.currentLine.style.display = "none";
-        });
-
-        function wsCheck(a, b) {
-            const path = wsPath(a, b);
-            if (path.length < 2) return;
-            const text = path.map(p => ws.letters[p.r][p.c]).join("");
-            const back = text.split("").reverse().join("");
-            const match = ws.words.find(w => w.word === text || w.word === back);
-
-            if (match && match.found) {
-                speak(match.entry.w);
-                wsFlash(`You already found "${match.entry.w}".`);
-            } else if (match) {
-                match.found = true;
-                const color = WS_COLORS[ws.words.filter(w => w.found).length % WS_COLORS.length];
-                placeLine(svgLine("band", 0.72, color), a, b);
-                placeLine(svgLine("strike", 0.08), a, b);
-                wsLinesEl.appendChild(ws.currentLine);
-                match.li.classList.add("found");
-                const label = match.li.querySelector(".ws-word");
-                label.textContent = match.entry.w;
-                label.style.textTransform = "";
-                speak(match.entry.w);
-                const card = makeWordCard(match.entry, false);
-                wsWallEl.prepend(card);
-                wsWallEmpty.hidden = true;
-                wsFlash(`You found "${match.entry.w}"! Say it: ${match.entry.p}`);
-                wsUpdateStatus();
-                if (ws.words.every(w => w.found)) wsCelebrate();
-            } else {
-                const miss = svgLine("miss", 0.72);
-                placeLine(miss, a, b);
-                setTimeout(() => miss.remove(), 700);
-                wsFlash(`"${text}" isn't one of the words. Try again!`);
-            }
-        }
-
-        function wsFlash(msg) {
-            wsMessageEl.textContent = msg;
-        }
-
-        function wsUpdateStatus() {
-            const found = ws.words.filter(w => w.found).length;
-            wsStatusEl.textContent = `🔍 ${found} / ${ws.words.length} words found · 💡 hints: ${ws.hints}`;
-        }
-
-        function wsCelebrate() {
-            const stars = ws.hints === 0 ? "🌟🌟🌟" : ws.hints <= 3 ? "🌟🌟" : "🌟";
-            wsBannerEl.textContent = `${stars} You found all ${ws.words.length} words with ${ws.hints} hint${ws.hints === 1 ? "" : "s"}! ` +
-                "Read each word below out loud, then try a new puzzle.";
-            wsBannerEl.classList.add("show");
-        }
-
-        function wsSetMode(m) {
-            ws.mode = m;
-            document.getElementById("wsModeRead").setAttribute("aria-pressed", m === "read");
-            document.getElementById("wsModeListen").setAttribute("aria-pressed", m === "listen");
-            wsRenderList();
-            if (m === "listen" && !canSpeak()) {
-                wsFlash("This browser can't read words out loud. Try Chrome, Edge or Safari.");
-            }
-        }
-
-        document.getElementById("wsModeRead").addEventListener("click", () => wsSetMode("read"));
-        document.getElementById("wsModeListen").addEventListener("click", () => wsSetMode("listen"));
-        document.getElementById("wsNew").addEventListener("click", wsNewGame);
-        document.getElementById("wsHard").addEventListener("change", wsNewGame);
-        document.getElementById("wsPrint").addEventListener("click", () => window.print());
-
-        document.getElementById("wsHint").addEventListener("click", () => {
-            const left = ws.words.filter(w => !w.found);
-            if (!left.length) return;
-            const w = left[Math.floor(Math.random() * left.length)];
-            ws.hints++;
-            const cell = ws.cells[w.r][w.c];
-            cell.classList.remove("hint");
-            void cell.offsetWidth;
-            cell.classList.add("hint");
-            setTimeout(() => cell.classList.remove("hint"), 2600);
-            speak(w.entry.w);
-            wsUpdateStatus();
-            wsFlash(`"${w.entry.w}" starts at the flashing letter.`);
-        });
-
-        // ---------- Game tabs ----------
-
-        function showGame(name) {
-            const isWs = name === "ws";
-            document.getElementById("wordSearchGame").hidden = !isWs;
-            document.getElementById("crosswordGame").hidden = isWs;
-            document.getElementById("tabWs").setAttribute("aria-selected", isWs);
-            document.getElementById("tabCw").setAttribute("aria-selected", !isWs);
-            if (isWs) wsSize(); else sizeCells();
-        }
-
-        document.getElementById("tabWs").addEventListener("click", () => showGame("ws"));
-        document.getElementById("tabCw").addEventListener("click", () => showGame("cw"));
-
-        window.addEventListener("resize", () => { sizeCells(); wsSize(); });
-        newGame();
-        wsNewGame();
-    </script>
+    <div class="modal" id="confirmBox" hidden>
+        <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmText">
+            <p id="confirmText"></p>
+            <div class="row">
+                <button type="button" id="confirmNo">No, go back</button>
+                <button type="button" class="primary" id="confirmYes">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confetti" aria-hidden="true"></div>
+    <div id="printArea"></div>
+
+    <script src="words.js"></script>
+    <script src="app.js"></script>
+    <script src="wordsearch.js"></script>
+    <script src="crossword.js"></script>
+    <script src="panels.js"></script>
+    <script>App.start();</script>
 </body>
 
 </html>
