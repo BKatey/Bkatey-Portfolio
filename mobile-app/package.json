@@ -7,12 +7,14 @@
     "build": "node scripts/copy-web.mjs",
     "sync": "npm run build && cap sync",
     "android": "npm run sync && cap open android",
-    "apk": "npm run sync && cd android && ./gradlew assembleDebug"
+    "apk": "npm run sync && cd android && ./gradlew assembleDebug",
+    "ios": "npm run sync && cap open ios"
   },
   "dependencies": {
     "@capacitor-community/text-to-speech": "8.0.2",
     "@capacitor/android": "8.5.3",
-    "@capacitor/core": "8.5.3"
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3"

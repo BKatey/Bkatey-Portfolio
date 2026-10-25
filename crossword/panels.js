@@ -188,8 +188,10 @@
     function fillVoices() {
         if (App.NATIVE) {
             voiceSelect.closest("label").hidden = true;
-            $("voiceNote").textContent = "The app uses this device's reading voice. To change it, open your phone's " +
-                "Settings and search for \"text-to-speech\".";
+            const ios = window.Capacitor.getPlatform && window.Capacitor.getPlatform() === "ios";
+            $("voiceNote").textContent = ios
+                ? "The app uses this device's reading voice. To change it, open Settings → Accessibility → Spoken Content → Voices."
+                : "The app uses this device's reading voice. To change it, open your phone's Settings and search for \"text-to-speech\".";
             return;
         }
         const voices = App.englishVoices();
