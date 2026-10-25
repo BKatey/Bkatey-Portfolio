@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Spelling Word Games</title>
+    <meta name="description" content="Word search and crossword games that help 5th graders practice spelling and pronunciation.">
+    <meta name="theme-color" content="#2457d6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Spelling Games">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="icons/favicon-64.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="fonts.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <header class="top">
+        <div class="brand">
+            <h1>Spelling Word Games</h1>
+            <p>Find it. Hear it. Say it. Spell it.</p>
+            <button type="button" class="install-btn" id="installBtn" hidden>📲 Install app</button>
+        </div>
+        <nav class="tabs" role="tablist" aria-label="Sections">
+            <button type="button" role="tab" id="tab-ws" data-tab="ws" aria-controls="panel-ws"><span class="tab-icon" aria-hidden="true">🔍</span><span class="tab-label">Word Search</span></button>
+            <button type="button" role="tab" id="tab-cw" data-tab="cw" aria-controls="panel-cw"><span class="tab-icon" aria-hidden="true">🧩</span><span class="tab-label">Crossword</span></button>
+            <button type="button" role="tab" id="tab-progress" data-tab="progress" aria-controls="panel-progress"><span class="tab-icon" aria-hidden="true">📈</span><span class="tab-label">My Progress</span></button>
+            <button type="button" role="tab" id="tab-grownups" data-tab="grownups" aria-controls="panel-grownups"><span class="tab-icon" aria-hidden="true">⚙️</span><span class="tab-label">Grown-ups</span></button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- ================= Word search ================= -->
+        <section id="panel-ws" class="panel" role="tabpanel" aria-labelledby="tab-ws" hidden>
+            <div class="toolbar">
+                <div class="seg" role="group" aria-label="Word list">
+                    <button type="button" id="wsModeRead" aria-pressed="true">📖 Read the list</button>
+                    <button type="button" id="wsModeListen" aria-pressed="false">🎧 Listen &amp; find</button>
+                </div>
+                <label class="field"><span class="field-label">Level</span> <select class="level-select" aria-label="Level"></select></label>
+                <button type="button" id="wsHint">💡 Hint</button>
+                <button type="button" id="wsNew" class="primary">New puzzle</button>
+                <span class="toolbar-end">
+                    <button type="button" class="quiet" data-howto="ws">❓ How to play</button>
+                    <button type="button" class="quiet site-only" id="wsPrint">🖨️ Worksheet</button>
+                </span>
+            </div>
+
+            <div class="howto" id="howto-ws" hidden>
+                <div class="howto-demo" aria-hidden="true">
+                    <div class="demo-grid">
+                        <span>C</span><span>A</span><span>T</span><span>S</span>
+                        <span>X</span><span>B</span><span>O</span><span>K</span>
+                        <span>D</span><span>O</span><span>G</span><span>P</span>
+                    </div>
+                    <div class="demo-band"></div>
+                    <div class="demo-finger">👆</div>
+                </div>
+                <div class="howto-text">
+                    <h2>How to play Word Search</h2>
+                    <ol>
+                        <li>Look for a word from the list in the letters.</li>
+                        <li>Put your finger (or mouse) on the first letter and slide to the last letter. Or tap the first letter, then tap the last.</li>
+                        <li>The word gets crossed out and you'll hear it. Then say it out loud yourself!</li>
+                    </ol>
+                    <p class="muted">Keyboard: use the arrow keys to move and press Enter on the first and last letter.</p>
+                    <button type="button" class="primary howto-ok">Got it!</button>
+                </div>
+            </div>
+
+            <div class="scorebar">
+                <div class="meter" aria-hidden="true"><span id="wsBar"></span></div>
+                <span id="wsStatus" class="score"></span>
+            </div>
+
+            <div class="banner" id="wsBanner" role="status" hidden></div>
+
+            <div class="layout">
+                <section class="card play">
+                    <div class="ws-wrap" id="wsWrap" tabindex="0" role="application"
+                        aria-label="Word search letters. Use arrow keys to move and Enter to choose the first and last letter of a word.">
+                        <svg id="wsLines" aria-hidden="true"></svg>
+                        <div id="wsGrid"></div>
+                    </div>
+                    <div id="wsCoach"></div>
+                </section>
+
+                <section class="card side">
+                    <h2>Words to find</h2>
+                    <ol id="wsList" class="find-list"></ol>
+                    <p class="practice-note" id="wsPracticeNote" hidden></p>
+                </section>
+            </div>
+
+            <section class="card word-wall">
+                <h2>🏆 Words I found</h2>
+                <p class="muted" id="wsWallEmpty">Each word you find shows up here with its syllables and how to say it.</p>
+                <div class="wall" id="wsWall"></div>
+            </section>
+        </section>
+
+        <!-- ================= Crossword ================= -->
+        <section id="panel-cw" class="panel" role="tabpanel" aria-labelledby="tab-cw" hidden>
+            <div class="toolbar">
+                <div class="seg" role="group" aria-label="Clues">
+                    <button type="button" id="cwModeRead" aria-pressed="true">📖 Read clues</button>
+                    <button type="button" id="cwModeListen" aria-pressed="false">🎧 Listen &amp; spell</button>
+                </div>
+                <label class="field"><span class="field-label">Level</span> <select class="level-select" aria-label="Level"></select></label>
+                <details class="menu">
+                    <summary>🛟 Help me</summary>
+                    <div class="menu-list" role="menu">
+                        <button type="button" class="menu-item" role="menuitem" data-cw="hint">💡 Sound out this word</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="check-word">✔️ Check this word</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="check-all">✔️ Check the whole puzzle</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="reveal-letter">🔤 Show one letter</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="reveal-word">📝 Show this word</button>
+                        <button type="button" class="menu-item" role="menuitem" data-cw="clear">🧹 Clear my letters</button>
+                    </div>
+                </details>
+                <button type="button" id="cwNew" class="primary">New puzzle</button>
+                <span class="toolbar-end">
+                    <button type="button" class="quiet" data-howto="cw">❓ How to play</button>
+                    <button type="button" class="quiet site-only" id="cwPrint">🖨️ Worksheet</button>
+                </span>
+            </div>
+
+            <div class="howto" id="howto-cw" hidden>
+                <div class="howto-demo cw-demo" aria-hidden="true">
+                    <div class="demo-cw">
+                        <span class="n">1</span><span>S</span><span>U</span><span>N</span>
+                    </div>
+                </div>
+                <div class="howto-text">
+                    <h2>How to play Crossword</h2>
+                    <ol>
+                        <li>Tap a clue or a square. The word you're working on turns blue.</li>
+                        <li>Read the clue or press 🔊 to hear the word, then type it.</li>
+                        <li>Tap the same square again to switch between Across and Down.</li>
+                        <li>Stuck? Open <strong>🛟 Help me</strong> to sound it out or check your letters.</li>
+                    </ol>
+                    <button type="button" class="primary howto-ok">Got it!</button>
+                </div>
+            </div>
+
+            <div class="scorebar">
+                <div class="meter" aria-hidden="true"><span id="cwBar"></span></div>
+                <span id="cwStatus" class="score"></span>
+            </div>
+
+            <div class="banner" id="cwBanner" role="status" hidden></div>
+
+            <div class="layout">
+                <section class="card play">
+                    <div class="current-clue" id="cwClue" aria-live="polite"></div>
+                    <div id="cwGrid" aria-label="Crossword grid"></div>
+                    <div id="cwCoach"></div>
+                </section>
+
+                <section class="card side clues">
+                    <h2>Across</h2>
+                    <ol id="cwAcross"></ol>
+                    <h2>Down</h2>
+                    <ol id="cwDown"></ol>
+                    <p class="practice-note" id="cwPracticeNote" hidden></p>
+                </section>
+            </div>
+
+            <section class="card word-wall">
+                <h2>🏆 Words I spelled</h2>
+                <p class="muted" id="cwWallEmpty">Words you spell show up here with their syllables and how to say them.</p>
+                <div class="wall" id="cwWall"></div>
+            </section>
+        </section>
+
+        <!-- ================= Progress ================= -->
+        <section id="panel-progress" class="panel" role="tabpanel" aria-labelledby="tab-progress" hidden>
+            <div class="toolbar">
+                <h2 class="panel-title">My Progress</h2>
+                <span class="toolbar-end">
+                    <button type="button" class="quiet site-only" id="progressPrint">🖨️ Print report</button>
+                    <button type="button" class="quiet" id="progressReset">Start over</button>
+                </span>
+            </div>
+            <div id="progressBody"></div>
+        </section>
+
+        <!-- ================= Grown-ups ================= -->
+        <section id="panel-grownups" class="panel" role="tabpanel" aria-labelledby="tab-grownups" hidden>
+            <h2 class="panel-title">For parents and teachers</h2>
+
+            <div class="settings">
+                <section class="card">
+                    <h3>Spelling words</h3>
+                    <fieldset class="radio-row">
+                        <legend class="sr-only">Which words to use</legend>
+                        <label><input type="radio" name="listSource" id="listBuiltin" value="builtin"> Built-in 5th grade words (51 words)</label>
+                        <label><input type="radio" name="listSource" id="listCustom" value="custom"> My own list</label>
+                    </fieldset>
+                    <div id="customListBox">
+                        <label class="stack" for="listName">List name
+                            <input type="text" id="listName" placeholder="Week 7 spelling words" maxlength="60">
+                        </label>
+                        <label class="stack" for="listText">Words (one per line, or separated by commas)
+                            <textarea id="listText" rows="9" spellcheck="false"
+                                placeholder="glacier: A huge, slow-moving river of ice&#10;because&#10;knowledge&#10;rhythm, castle, island"></textarea>
+                        </label>
+                        <p class="muted small">Add a clue after a colon, like <code>glacier: A huge, slow-moving river of ice</code>.
+                            Words already in the built-in list get their clue, syllables and "say it" guide automatically.
+                            Use at least 4 words, each 3 to 14 letters.</p>
+                    </div>
+                    <div class="row">
+                        <button type="button" class="primary" id="listSave">Save and make new puzzles</button>
+                    </div>
+                    <div id="listReport" class="report" aria-live="polite"></div>
+                    <div id="listPreview" class="chips"></div>
+                </section>
+
+                <section class="card">
+                    <h3>Voice and sounds</h3>
+                    <label class="stack" for="voiceSelect">Reading voice
+                        <select id="voiceSelect"></select>
+                    </label>
+                    <label class="stack" for="rate">Speaking speed: <output id="rateOut"></output>
+                        <input type="range" id="rate" min="0.5" max="1.2" step="0.05">
+                    </label>
+                    <div class="row">
+                        <button type="button" id="testVoice">🔊 Test the voice</button>
+                    </div>
+                    <p class="muted small" id="voiceNote"></p>
+                    <label class="check"><input type="checkbox" id="sfx"> Play sound effects (chimes and cheers)</label>
+                </section>
+
+                <section class="card">
+                    <h3>Display</h3>
+                    <label class="stack" for="textSize">Text size
+                        <select id="textSize">
+                            <option value="normal">Normal</option>
+                            <option value="large">Large</option>
+                            <option value="xl">Extra large</option>
+                        </select>
+                    </label>
+                    <label class="stack" for="themeSelect">Colours
+                        <select id="themeSelect">
+                            <option value="auto">Match this device</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </label>
+                    <label class="check"><input type="checkbox" id="contrast"> High contrast (black and white)</label>
+                </section>
+
+                <section class="card">
+                    <h3>📲 Use it as an app</h3>
+                    <div id="installInfo"></div>
+                </section>
+
+                <section class="card">
+                    <h3>Printing and sharing</h3>
+                    <p class="site-only">Each game has a <strong>🖨️ Worksheet</strong> button. It prints the puzzle on page 1
+                        and an answer key with a "say it" guide on page 2. The progress page can be printed too.</p>
+                    <p class="embedded-only">Printing isn't available here. Open the website version
+                        to print worksheets and progress reports.</p>
+                    <p class="muted small">Progress and word lists are saved in this browser on this device only.</p>
+                </section>
+            </div>
+        </section>
+
+        <p class="site-only back"><a href="../index.html">← Back to portfolio</a></p>
+    </main>
+
+    <div class="modal" id="confirmBox" hidden>
+        <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmText">
+            <p id="confirmText"></p>
+            <div class="row">
+                <button type="button" id="confirmNo">No, go back</button>
+                <button type="button" class="primary" id="confirmYes">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confetti" aria-hidden="true"></div>
+    <div id="printArea"></div>
+
+    <script src="words.js"></script>
+    <script src="app.js"></script>
+    <script src="wordsearch.js"></script>
+    <script src="crossword.js"></script>
+    <script src="panels.js"></script>
+    <script>App.start();</script>
+</body>
+
+</html>

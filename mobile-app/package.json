@@ -1,0 +1,22 @@
+{
+  "name": "spelling-word-games-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android and iOS app for Spelling Word Games, built with Capacitor from ../crossword.",
+  "scripts": {
+    "build": "node scripts/copy-web.mjs",
+    "sync": "npm run build && cap sync",
+    "android": "npm run sync && cap open android",
+    "apk": "npm run sync && cd android && ./gradlew assembleDebug",
+    "ios": "npm run sync && cap open ios"
+  },
+  "dependencies": {
+    "@capacitor-community/text-to-speech": "8.0.2",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

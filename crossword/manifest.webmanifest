@@ -1,0 +1,18 @@
+{
+    "name": "Spelling Word Games",
+    "short_name": "Spelling Games",
+    "description": "Word search and crossword games that help 5th graders practice spelling and pronunciation.",
+    "id": "./",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#f3f6fb",
+    "theme_color": "#2457d6",
+    "categories": ["education", "kids", "games"],
+    "icons": [
+        { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}
